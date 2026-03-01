@@ -94,11 +94,13 @@ class APIClient():
         response_main = response.choices[0]
 
         # extract message content
-        final_content = response_main.message.content
+        final_content = response_main.message.content or ""
 
         # handle tool calls, if any
         if response_main.message.tool_calls:
-            final_content += await self.manager.handle_tool_calls(response_main.message.tool_calls, channel)
+            tool_results = await self.manager.handle_tool_calls(response_main.message.tool_calls, channel)
+            if tool_results:
+                final_content += str(tool_results)
 
         # add it to context
         if add_turn:

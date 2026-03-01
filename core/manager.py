@@ -42,16 +42,12 @@ class Manager:
         # start scheduler
         tasks.append(asyncio.create_task(self.scheduler.run()))
 
-        # prepare CamelCase to snake_case conversion
-        re_snakecase = re.compile('(?!^)([A-Z]+)')
-
         # load channels
         core.log("init", "loading channels")
         import channels
         for channel in channels.get_all():
             # only load enabled channels
-            channel_name_snakecase = re.sub(re_snakecase, r'_\1', channel.__name__).lower()
-            channel_name_snakecase = channel_name_snakecase.replace("channel", "").strip("_")
+            channel_name_snakecase = core.submodule.process_name(channel, "channel")
             if channel_name_snakecase in core.config.get("channels", []):
                 chan = channel(self)
                 self.channels[channel_name_snakecase] = chan
@@ -66,8 +62,7 @@ class Manager:
         # load tools
         for tool in tools.get_all():
             # only load enabled tools
-            tool_name_snakecase = re.sub(re_snakecase, r'_\1', tool.__name__).lower()
-            tool_name_snakecase = tool_name_snakecase.replace("tool", "").strip("_")
+            tool_name_snakecase = core.submodule.process_name(tool, "tool")
             if tool_name_snakecase in core.config.get("tools", []):
                 self.add_tool_class(tool)
                 loaded_tool_names.append(tool_name_snakecase)
@@ -104,9 +99,10 @@ class Manager:
             }
             persistent_memories.append(filtered_mem)
 
+        persistent_memories_display = json.dumps(persistent_memories, indent=2)
         full_prompt = "\n\n".join([
             f"# Session context\n{details_string}",
-            f"# Important memories\n{persistent_memories}",
+            f"# Important memories\n{persistent_memories_display}",
             f"# Your identity\n{system_prompt}"
         ])
 
@@ -202,6 +198,7 @@ class Manager:
         """
 
         self.tool_classes.append(toolclass)
+        class_display_name = core.submodule.process_name(toolclass, "tool")
 
         for func_name in dir(toolclass):
             if func_name.startswith("_"):
@@ -264,7 +261,7 @@ class Manager:
             tool = {
                 "type": "function",
                 "function": {
-                    "name": func_name,
+                    "name": f"{class_display_name}_{func_name}",
                     "description": docstring,
                     "parameters": {
                         "type": "object",
@@ -294,8 +291,13 @@ class Manager:
             # does the method exist within any of the loaded classes?
             toolclass_instance = None
             for class_obj in self.tool_classes:
-                if hasattr(class_obj, tool_call.function.name):
+                # translate the class name to be like the way it displays to the user
+                class_display_name = core.submodule.process_name(class_obj, "tool")
+                translated_tool_name = str(tool_call.function.name).replace(f"{class_display_name}_", "")
+
+                if hasattr(class_obj, translated_tool_name):
                     toolclass_instance = class_obj(self)
+                    toolclass_instance_display_name = class_display_name
                     # store a reference to the channel used to send the message
                     if channel:
                         toolclass_instance.channel = channel
@@ -303,8 +305,13 @@ class Manager:
                         core.log("warning", "channel was not used")
 
             if toolclass_instance:
+                # use the user-displayed class name to strip the function name of it
+                # earlier on we prefixed the name of each tool with the class's display name so that the 
+                # LLM knows which class a tool belongs to (e.g. memory_get = MemoryTool class's get() method)
+                translated_tool_name = str(tool_call.function.name).replace(f"{toolclass_instance_display_name}_", "")
+
                 # get the class method object
-                func_callable = getattr(toolclass_instance, tool_call.function.name)
+                func_callable = getattr(toolclass_instance, translated_tool_name)
 
                 # format its arguments in a JSON format the llm will understand
                 arg_obj = json_repair.loads(tool_call.function.arguments)
@@ -313,8 +320,9 @@ class Manager:
                     arg_display.append(str(arg_value))
                 arg_display = ", ".join(arg_display)
                 announce_string = f"calling tool {tool_call.function.name}({arg_display})"
-                if channel:
-                    await channel.announce(announce_string)
+                if self.channels:
+                    for channel_name, channel_obj in self.channels.items():
+                        await channel_obj.announce(announce_string)
                 else:
                     core.log("toolcall", announce_string)
 

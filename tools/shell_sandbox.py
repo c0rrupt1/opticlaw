@@ -30,7 +30,7 @@ class ShellSandboxTool(core.tool.Tool):
         # 3. Create new session ID (prevents terminal hijacking)
         os.setsid()
 
-    async def sandbox_exec(self, command: str, timeout: int = 30) -> dict:
+    async def exec(self, command: str, timeout: int = 30) -> dict:
         """
         Execute a command safely in a temporary sandbox directory.
         Uses shell=False for safety

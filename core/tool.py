@@ -5,9 +5,9 @@ class Tool:
         self.channel = None # gets replaced by current channel by the manager
         self.manager = manager
 
-    def result(self, data, error=False):
+    def result(self, data, success=True):
         """unified way of returning tool results"""
         return {
-            "status": "success" if not error else "error",
+            "status": "success" if success else "error",
             "content": data
         }

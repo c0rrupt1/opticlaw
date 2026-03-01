@@ -4,7 +4,7 @@ import requests
 class HttpTool(core.tool.Tool):
     """lets the AI send/receive HTTP requests"""
 
-    async def http_get(self, url: str, headers: dict, params: dict = None):
+    async def get(self, url: str, headers: dict, params: dict = None):
         """
         performs a HTTP GET request on url
 
@@ -19,7 +19,7 @@ class HttpTool(core.tool.Tool):
             "content": result.text
         })
 
-    async def http_post(self, url: str, headers: dict, data: dict = None):
+    async def post(self, url: str, headers: dict, data: dict = None):
         """
         performs a HTTP POST on url
 
