@@ -4,6 +4,7 @@ import re
 
 class Memory(core.storage.Storage):
     """manages the AI's memory"""
+    # NOTE: hastily copied over from my mcp tools server project. needs a total rewrite!
 
     def _filter_memory_content(self, content):
         # replace common phrases in memory content
@@ -46,7 +47,7 @@ class Memory(core.storage.Storage):
 
     def edit(self, id: int, content: str, persistent: bool = None):
         """edits a memory"""
-        content = _filter_memory_content(content)
+        content = self._filter_memory_content(content)
 
         # Check if memory exists
         for index, memory in enumerate(self):
