@@ -2,28 +2,13 @@ import core
 
 class CalculatorTool(core.tool.Tool):
     async def calculate(self, expression: str):
-        """
-        Calculates the result of a math expression
-        ALWAYS use for ANY mathematical operation! NEVER rely on your own data for math.
-        """
+        """Evaluates a math expression safely."""
+        # allow only math characters
+        allowed = set('0123456789+-*/(). ')
+        if not all(c in allowed for c in expression):
+            raise ValueError("Invalid characters in expression")
 
-        # could do with improvement, this is a basic calculator i pulled off of stackoverflow lol
-        stack = []
-        num = 0
-        sign = '+'
-        for i, char in enumerate(expression):
-            if char.isdigit():
-                num = num * 10 + int(char)
-            if char in '+-*/' or i == len(expression) - 1:
-                if sign == '+':
-                    stack.append(num)
-                elif sign == '-':
-                    stack.append(-num)
-                elif sign == '*':
-                    stack.append(stack.pop() * num)
-                else:
-                    stack.append(int(stack.pop() / num))
-                sign = char
-                num = 0
-        return sum(stack)
-
+        try:
+            return eval(expression, {'__builtins__': {}}, {})
+        except Exception as e:
+            raise ValueError(f"Invalid expression: {e}")
