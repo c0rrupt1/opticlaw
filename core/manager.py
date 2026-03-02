@@ -99,7 +99,7 @@ class Manager:
         #     }
         #     persistent_memories.append(filtered_mem)
 
-        persistent_memories_display = json.dumps(persistent_memories, indent=2)
+        # persistent_memories_display = json.dumps(persistent_memories, indent=2)
         full_prompt = "\n\n".join([
             f"# Session context\n{details_string}",
             # f"# Important memories\n{persistent_memories_display}",
