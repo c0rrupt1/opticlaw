@@ -13,7 +13,7 @@ default_config = {
     "max_turns": 20,
     "system_prompt": "You are a helpful AI assistant",
     "channels": ["cli"],
-    "tools": ["memory"]
+    "modules": ["identity", "memory", "scheduler"]
 }
 
 config_path = core.get_path("config.yaml")

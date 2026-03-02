@@ -1,0 +1,151 @@
+import core
+import os
+import msgpack
+import datetime
+import re
+
+cached_mem = None
+
+class Memory(core.module.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__( *args, **kwargs)
+        self._mem = core.storage.Storage("memory", type="msgpack")
+        self._mem_deleted = core.storage.Storage("deleted_memories", type="json")
+        self.max_pinned = 10
+
+    async def on_system_prompt(self):
+        # automatically put pinned memories in the prompt
+        # TODO: limit to a max amount of pinned memories (configurable) and refuse pinning memories beyond that if it hits the max allowed, tell ai to unpin one so another can be pinned instead
+        pinned_memories = []
+        for index, mem in enumerate(self._mem):
+            if mem.get("pinned"):
+                # add ID to it.. ID = index in the list
+                filtered_mem = {
+                    "id": index,
+                    "content": mem.get("content")
+                }
+                pinned_memories.append(filtered_mem)
+
+        sysprompt = f"{str(pinned_memories)}\n\nThis is your persistent memory system. When you need to remember something, ALWAYS store it in memory using the memory_create() tool."
+
+        return sysprompt
+
+    async def create(self, content: str, tags: list, pinned: bool = False):
+        """
+        Creates a new memory within your persistent memory storage.
+
+        A memory should be pinned if it's:
+        - Permanent preferences (favorite color, favorite shows, allergies, dietary restrictions)
+        - A highly important fact that must always be remembered
+        - User's core identity details (name, occupation, family)
+        - Long-term goals or life circumstances
+
+        Args:
+            content: the contents of the memory
+            tags: a list of tags to associate with the memory for later lookup
+            pinned: whether to pin a memory to the top of your context window
+        """
+        mem = {
+            "content": content,
+            "tags": tags,
+            "pinned": pinned,
+            "date_created": datetime.datetime.now().isoformat()
+        }
+        self._mem.append(mem)
+        self._mem.save()
+        return self.result({"id": len(self._mem)-1})
+
+    async def edit(self, id: int, content: str = None, tags: list = None):
+        """
+        Edits an existing memory.
+
+        CAUTION:
+            - ONLY use if you can see the memory's ID
+            - NEVER hallucinate or make up an ID
+            - If you cannot see the memory, search for it first using memory_search()
+        
+        Reject if:
+            - You cannot see the memory you are about to edit
+            - You're not sure which memory to edit
+
+        Args:
+            content: the contents of the memory
+            tags: optional - leave blank to leave it as-is. a list of tags to associate with the memory for later lookup
+        """
+        if id > len(self._mem) or id < 0:
+            return False
+
+        if content:
+            self._mem[id]["content"] = content
+        if tags:
+            self._mem[id]["tags"] = tags
+
+        return self.result(self._mem.save())
+
+    async def delete(self, id: int):
+        """
+        Deletes a memory from your storage.
+        DANGEROUS. HIGHEST RESTRICTIONS APPLY.
+
+        ONLY delete a memory if:
+            - You're sure you have the ID
+            - You've verified the ID
+            - The user explicitely requested the deletion of the memory
+        """
+        if id >= len(self._mem) or id < 0:
+            return self.result("memory did not exist", False)
+
+        # behind the scenes, this actually preserves the memory in a file the ai can't access
+        # backups are useful!
+        self._mem_deleted.append(self._mem[id])
+        self._mem_deleted.save()
+
+        self._mem.pop(id)
+        return self.result(self._mem.save())
+
+    async def pin(self, id: int):
+        """Pins a memory to the top of your context window. Makes it persistent across conversations."""
+        if id >= len(self._mem) or id < 0:
+            return False
+        self._mem[id]["pinned"] = True
+        return self.result(self._mem.save())
+    async def unpin(self, id: int):
+        """Unpins a memory from the top of your context window. An unpinned memory can only be reached by manually searching for it."""
+        if id >= len(self._mem) or id < 0:
+            return False
+        self._mem[id]["pinned"] = False
+
+        return self.result(self._mem.save())
+
+    async def search(self, query: str, search_in_content: bool = False):
+        """
+        Searches your memories for a query.
+        Defaults to searching within tags. Enable search_content to also search within the content of memories.
+        """
+        results = []
+        query_lower = query.lower()
+
+        for index, mem in enumerate(self._mem):
+            mem_copy = mem.copy()
+            mem_copy["id"] = index
+
+            # Check tags: split tags into words and check if any word is in the query
+            match_found = False
+            tags = mem.get("tags", [])
+
+            for tag in tags:
+                # Split tag into words and check if any word exists in the query
+                if any(word in query_lower for word in tag.lower().split()):
+                    match_found = True
+                    break
+
+            # Check content only if no tag match found
+            if not match_found and search_in_content:
+                content = mem.get("content", "")
+                if content and query_lower in content.lower():
+                    match_found = True
+
+            if match_found:
+                results.append(mem_copy)
+
+        return results

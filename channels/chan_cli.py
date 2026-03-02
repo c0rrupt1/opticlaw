@@ -2,7 +2,7 @@ import core
 import prompt_toolkit
 import prompt_toolkit.patch_stdout
 
-class CliChannel(core.channel.Channel):
+class Cli(core.channel.Channel):
     async def run(self):
         core.log("cli", "Welcome to opticlaw!")
 

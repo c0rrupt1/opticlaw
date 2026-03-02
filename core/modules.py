@@ -1,5 +1,6 @@
 import core
 import re
+import inspect
 
 def load(package, base_class):
     """
@@ -48,11 +49,16 @@ def load(package, base_class):
 
     return tuple(discovered)
 
-def process_name(obj, type_name: str):
+def get_name(obj):
     """converts a name like SchedulerTool to just `scheduler`"""
 
+    name = None
+    if inspect.isclass(obj):
+        name = obj.__name__
+    else:
+        name = obj.__class__.__name__
+
     re_snakecase = re.compile('(?!^)([A-Z]+)')
-    name_snakecase = re.sub(re_snakecase, r'_\1', obj.__name__).lower()
-    name_snakecase = name_snakecase.replace(type_name, "").strip("_")
+    name_snakecase = re.sub(re_snakecase, r'_\1', name).lower()
 
     return name_snakecase

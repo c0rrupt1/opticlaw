@@ -1,4 +1,5 @@
 import core
+import modules
 import os
 import sys
 import platform
@@ -8,7 +9,6 @@ import json
 import json_repair
 import inspect
 import re
-import tools
 
 class Manager:
     """the central class that manages everything"""
@@ -18,11 +18,10 @@ class Manager:
         self.API = None # connect later with .connect()
         self.scheduler = core.scheduler.Scheduler()
         self.channels = {}
-        self.tool_classes = []
+        self.channel = None # current active channel. gets dynamically switched around
+        self.modules = {}
+        self.module_instances = {}
         self.tools = []
-        self.memory = core.memory.Memory("memory", manager=self)
-        self.deleted_memories = core.memory.Memory("deleted_memories", manager=self)
-        #self.history = core.memory.History("history", manager=self)
 
     def connect(self, *args, **kwargs):
         args = (self,)+args
@@ -49,7 +48,7 @@ class Manager:
         import channels
         for channel in channels.get_all():
             # only load enabled channels
-            channel_name_snakecase = core.submodule.process_name(channel, "channel")
+            channel_name_snakecase = core.modules.get_name(channel)
             if channel_name_snakecase in core.config.get("channels", []):
                 chan = channel(self)
                 self.channels[channel_name_snakecase] = chan
@@ -59,55 +58,57 @@ class Manager:
             tasks.append(asyncio.create_task(channel.run()))
             core.log("init", f"started channel {channel_name}")
 
-        core.log("init", "loading tools")
-        loaded_tool_names = []
-        # load tools
-        for tool in tools.get_all():
-            # only load enabled tools
-            tool_name_snakecase = core.submodule.process_name(tool, "tool")
-            if tool_name_snakecase in core.config.get("tools", []):
-                self.add_tool_class(tool)
-                loaded_tool_names.append(tool_name_snakecase)
-        core.log("init", f"tools loaded: {', '.join(loaded_tool_names)}")
+        core.log("init", "loading modules")
+        loaded_module_names = []
+        # load modules
+        for module in modules.get_all():
+            # only load enabled modules
+            module_name_snakecase = core.modules.get_name(module)
+            if module_name_snakecase in core.config.get("modules", []):
+                await self.add_module_class(module)
+                loaded_module_names.append(module_name_snakecase)
+        core.log("init", f"modules loaded: {', '.join(loaded_module_names)}")
 
         # run everything
         await asyncio.gather(*tasks)
 
-    def get_system_prompt(self):
-        system_prompt = core.config.get("system_prompt", "")
+    async def get_system_prompt(self):
+        system_prompt = []
 
-        details = {
-            "current time": datetime.datetime.now().isoformat(),
-            "OS": sys.platform,
-            "OS release": platform.release(),
-            "platform": platform.platform(),
-            "architecture": platform.machine() if platform.machine() else "unknown",
-            "hostname": platform.node(),
-            "home dir": os.path.expanduser("~")
-        }
+        #W automatically insert system prompts returned by modules (such as memory)
+        sysprompt_top = []
+        sysprompt_middle = []
+        sysprompt_bottom = []
+        for module_name, module in self.modules.items():
+            module_sysprompt = await module.on_system_prompt()
 
-        details_string = ""
-        for key, value in details.items():
-            details_string += f"{key}: {value}\n"
-        details_string = details_string.strip()
+            if module_sysprompt:
+                prompt_chunk = f"# {module_name.capitalize()}\n{str(module_sysprompt).strip()}"
 
-        # automatically put pinned memories in the prompt
-        pinned_memories = []
-        for mem in self.memory.get_pinned():
-            filtered_mem = {
-                "id": mem.get("id"),
-                "content": mem.get("content")
-            }
-            pinned_memories.append(filtered_mem)
+                if module_name in ("memory", "identity"):
+                    sysprompt_top.append(prompt_chunk)
+                elif module_name in ("time", "system"):
+                    sysprompt_bottom.append(prompt_chunk)
+                else:
+                    sysprompt_middle.append(prompt_chunk)
 
-        pinned_memories_json = json.dumps(pinned_memories)
-        full_prompt = "\n\n".join([
-            f"# Session context\n{details_string}",
-            f"# Pinned memories\n{pinned_memories_json}",
-            f"# Your identity\n{system_prompt}"
-        ])
+        if self.channel:
+            chan = core.module.get_name(self.channel)
+            sysprompt_bottom.append(f"current channel: {chan}")
 
-        return full_prompt
+        system_prompt = sysprompt_top+sysprompt_middle+sysprompt_bottom
+
+        if system_prompt:
+            prompt_length = len("".join(system_prompt))
+            prompt_length_text = "System prompt length: {prompt_length} words."
+            prompt_length += len(prompt_length_text.split())
+            prompt_length_text = prompt_length_text.replace("{prompt_length}", str(prompt_length))
+
+            system_prompt.append(prompt_length_text)
+
+            return "\n\n".join(system_prompt)
+        else:
+            return ""
 
     # --- tools ---
     def parse_tool_docstring(self, docstring):
@@ -189,29 +190,36 @@ class Manager:
 
         return descriptions, clean_doc
 
-    def add_tool_class(self, toolclass):
+    async def add_module_class(self, module):
         """
         Adds tools to the manager based on a class with functions.
         To make tools, just make a class like so:
-        class MyToolClass(core.tools.Tools):
+        class Mymodule(core.tools.Tools):
             def search_web(query: str):
                 self.channel.send(your_websearch(query))
         """
 
-        self.tool_classes.append(toolclass)
-        class_display_name = core.submodule.process_name(toolclass, "tool")
+        loaded_module = module(self)
 
-        for func_name in dir(toolclass):
+        # create .channel alias in module, always refers to current channel
+        # doesnt actually work. will find a solution maybe, for now just use self.manager.channel inside modules
+        loaded_module.channel = self.channel
+
+        class_display_name = core.modules.get_name(module)
+        await loaded_module.on_ready()
+        self.modules[class_display_name] = loaded_module
+
+        for func_name in dir(module):
             if func_name.startswith("_"):
                 # skip private methods and other private properties
                 continue
 
-            if func_name == "result":
-                # builtin result function
+            if func_name == "result" or func_name.startswith("on_"):
+                # builtin function
                 continue
 
             try:
-                func_obj = getattr(toolclass, func_name)
+                func_obj = getattr(module, func_name)
             except:
                 continue
 
@@ -277,7 +285,7 @@ class Manager:
 
             self.tools.append(tool)
 
-    async def handle_tool_calls(self, tool_calls, channel=None):
+    async def handle_tool_calls(self, tool_calls):
         results = []
 
         # add toolcalls to context
@@ -290,29 +298,26 @@ class Manager:
         # call any tool calls based on the stored tool call function
         for tool_call in tool_calls:
             # does the method exist within any of the loaded classes?
-            toolclass_instance = None
-            for class_obj in self.tool_classes:
+            module_instance = None
+            for module_name, module_obj in self.modules.items():
                 # translate the class name to be like the way it displays to the user
-                class_display_name = core.submodule.process_name(class_obj, "tool")
+                class_display_name = core.modules.get_name(module_obj)
+                # ditto for the function name
                 translated_tool_name = str(tool_call.function.name).replace(f"{class_display_name}_", "")
 
-                if hasattr(class_obj, translated_tool_name):
-                    toolclass_instance = class_obj(self)
-                    toolclass_instance_display_name = class_display_name
-                    # store a reference to the channel used to send the message
-                    if channel:
-                        toolclass_instance.channel = channel
-                    else:
-                        core.log("warning", "channel was not used")
+                if hasattr(module_obj, translated_tool_name):
+                    # get reference to it from the already instantiated class
+                    module_instance = module_obj
+                    module_instance_display_name = class_display_name
 
-            if toolclass_instance:
+            if module_instance:
                 # use the user-displayed class name to strip the function name of it
                 # earlier on we prefixed the name of each tool with the class's display name so that the 
                 # LLM knows which class a tool belongs to (e.g. memory_get = MemoryTool class's get() method)
-                translated_tool_name = str(tool_call.function.name).replace(f"{toolclass_instance_display_name}_", "")
+                translated_tool_name = str(tool_call.function.name).replace(f"{module_instance_display_name}_", "")
 
                 # get the class method object
-                func_callable = getattr(toolclass_instance, translated_tool_name)
+                func_callable = getattr(module_instance, translated_tool_name)
 
                 # format its arguments in a JSON format the llm will understand
                 arg_obj = json_repair.loads(tool_call.function.arguments)
@@ -351,9 +356,8 @@ class Manager:
         prompt = self.API._turns+[{"role": "system", "content": "If the tool response provides sufficient answers, tell the user the results. If not, consider if you need to use another tool? If so, call it."}]
 
         try:
-            return await self.API.recv(
+            return await self.API._recv(
                 self.API._request(prompt, tools=self.tools),
-                channel=channel,
                 use_tools=True,
                 add_turn=True
             )

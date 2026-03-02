@@ -29,9 +29,10 @@ class Channel:
 /new            start a new session (clears context window)
 /models         list available models
 /model          switch model
+/modules        list modules
+/module         enable/disable a module by name
 /tools          list tools
-/enable         enable a tool
-/disable        disable a tool
+/sysprompt      show current system prompt
 /stop           stops a running task
 /restart        restarts the server
 /help           this help
@@ -40,15 +41,20 @@ class Channel:
                 return "not implemented yet"
             case "model":
                 return "not implemented yet"
+            case "modules":
+                # TODO: also get disabled modules
+                return "\n".join(self.manager.modules.keys())
             case "tools":
                 tool_list = []
                 for tool in self.manager.tools:
                     tool_list.append(tool.get("function").get("name"))
                 return "\n".join(tool_list)
-            case "enable":
-                return "not implemented yet"
-            case "disable":
-                return "not implemented yet"
+            case "sysprompt":
+                sysprompt = await self.manager.get_system_prompt()
+                if sysprompt:
+                    return sysprompt
+                else:
+                    return "BLANK"
             case "restart":
                 await self.announce_all("restarting..")
                 time.sleep(0.5)
@@ -62,8 +68,7 @@ class Channel:
         if cmd_process:
             return cmd_process
 
-        response = self.manager.API.send(role, message, stream=False, **kwargs)
-        return await self.manager.API.recv(response, self, **kwargs)
+        return await self.manager.API.send(role, message, channel=self, stream=False, **kwargs)
 
     async def send_stream(self, role: str, message: str, **kwargs):
         """sends a message to the AI from within the current channel, streaming version"""
@@ -73,8 +78,7 @@ class Channel:
                 yield word
             return
 
-        response = self.manager.API.send(role, message, stream=True, **kwargs)
-        async for token in self.manager.API.recv_stream(response, self, **kwargs):
+        async for token in self.manager.API.send_stream(role, message, channel=self, **kwargs):
             yield token
 
     async def announce(self, message: str):

@@ -1,5 +1,5 @@
 import core
-import channels
 
 def get_all():
-    return core.submodule.load(channels, core.channel.Channel)
+    import channels
+    return core.module.load(channels, core.channel.Channel)

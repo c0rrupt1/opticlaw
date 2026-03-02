@@ -1,5 +1,8 @@
 import core
 import os
+import json
+import yaml
+import toml
 import msgpack
 
 DATADIR = "data"
@@ -7,12 +10,36 @@ if not os.path.exists(DATADIR):
     os.mkdir(DATADIR)
 
 class Storage(list):
-    """subclassed list that handles storage of data, uses msgpack format for speed and small size"""
-    def __init__(self, file_path, manager=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    """subclassed list that handles storage of data. supports a variety of storage formats."""
+    def __init__(self, file_path, manager=None, type: str = None, *args):
+        super().__init__(*args)
 
         self.path = core.get_path(os.path.join(DATADIR, file_path))
         self.name = os.path.basename(self.path)
+        self.binary = False
+
+        # lets not overwrite a builtin
+        file_type = type
+        if not type:
+            # default to json
+            file_type = "json"
+
+        file_ext = None
+        match file_type:
+            case "text":
+                file_ext = "txt"
+            case "json":
+                file_ext = "json"
+            case "yaml":
+                file_ext = "yml"
+            case "msgpack":
+                file_ext = "mp"
+                self.binary = True
+
+        self.type = file_type
+        self.ext = file_ext
+
+        self.path += f".{self.ext}"
 
         if manager:
             self.manager = manager
@@ -20,27 +47,57 @@ class Storage(list):
         if os.path.exists(self.path):
             self.load()
         else:
-            with open(self.path, "wb") as f:
-                f.write(msgpack.packb([]))
+            self.save()
+
+    def _write(self, content):
+        try:
+            write_mode = "wb" if self.binary else "w"
+            with open(self.path, write_mode) as f:
+                f.write(content)
+        except Exception as e:
+            core.log("error", f"error writing {self.name}: {e}")
+            return False
+
+        return True
+    def _read(self):
+        try:
+            result = None
+            read_mode = "rb" if self.binary else "r"
+            with open(self.path, read_mode) as f:
+                result = f.read()
+            return result
+        except Exception as e:
+            core.log("error", f"error reading {self.name}: {e}")
+            return False
 
     def save(self):
         """save content to file"""
-        with open(self.path, "wb") as f:
-            try:
-                serialized = msgpack.packb(self)
-                f.write(serialized)
-                return True
-            except Exception as e:
-                core.log("error", f"error writing {self.name}: {e}")
-                return False
+
+        match self.type:
+            case "json":
+                self._write(json.dumps(self))
+            case "yaml":
+                self._write(yaml.dump(self))
+            case "msgpack":
+                self._write(msgpack.packb(self))
+            case "text":
+                if len(self) > 0:
+                    self._write("\n".join(self))
 
     def load(self):
         """load content from file"""
-        with open(self.path, "rb") as f:
-            try:
-                self.clear()
-                self.extend(msgpack.unpackb(f.read()))
-                return self
-            except Exception as e:
-                core.log("error", f"error loading {self.name}: {e}")
-                return None
+        self.clear()
+
+        data = self._read()
+        if not data:
+            return None
+
+        match self.type:
+            case "json":
+                self.extend(json.loads(data))
+            case "yaml":
+                self.extend(yaml.load(data))
+            case "msgpack":
+                self.extend(msgpack.unpackb(data))
+            case "text":
+                self.extend(data.split("\n"))

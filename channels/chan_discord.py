@@ -76,7 +76,7 @@ class Client(discord.Client):
                 except Exception as e:
                     return await message.channel.send(f"error while receiving response from AI: {e}")
 
-class DiscordChannel(core.channel.Channel):
+class Discord(core.channel.Channel):
     def __init__(self, manager):
         super().__init__(manager)
 

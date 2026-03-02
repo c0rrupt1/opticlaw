@@ -51,27 +51,30 @@ class APIClient():
 
         return response
 
-    def build_context(self, system_prompt=True):
+    async def build_context(self, system_prompt=True):
         # context = system prompt + turn history
         context = []
 
         # always insert system prompt at start of context
         if system_prompt:
-            context = context+[{"role": "system", "content": self.manager.get_system_prompt()}]
+            context = context+[{"role": "system", "content": await self.manager.get_system_prompt()}]
 
         # insert turn history
         context = context+self._turns
 
         return context
 
-    def send(self, role: str, content: str, system_prompt=True, stream=True, use_context=True, use_tools=True, tools=None, add_turn=True, **kwargs):
-        """send a message to the LLM. returns a chat completions response object"""
+    async def send(self, role: str, content: str, system_prompt=True, channel=None, use_context=True, use_tools=True, tools=None, add_turn=True, **kwargs):
+        """send a message to the LLM. returns a string"""
+
+        if channel:
+            self.manager.channel = channel
 
         context = []
         if use_context:
             if add_turn:
                 self.insert_turn(role, content)
-            context = self.build_context(system_prompt=system_prompt)
+            context = await self.build_context(system_prompt=system_prompt)
         else:
             context = [{"role": role, "content": content}]
 
@@ -80,12 +83,33 @@ class APIClient():
             tools = self.manager.tools
 
         try:
-            return self._request(context, tools=(tools if use_tools else None), stream=stream, **kwargs)
+            return await self._recv(self._request(context, tools=(tools if use_tools else None), system_prompt=system_prompt, use_context=use_context, use_tools=use_tools, add_turn=add_turn, **kwargs))
         except Exception as e:
             core.log_error("error while sending request to AI", e)
             return None
 
-    async def recv(self, response, channel=None, add_turn=True, **kwargs):
+    async def send_stream(self, role: str, content: str, system_prompt=True, channel=None, use_context=True, use_tools=True, tools=None, add_turn=True, **kwargs):
+        """send a message to the LLM. is an iterable async generator"""
+
+        if channel:
+            self.manager.channel = channel
+
+        context = []
+        if use_context:
+            if add_turn:
+                self.insert_turn(role, content)
+            context = await self.build_context(system_prompt=system_prompt)
+        else:
+            context = [{"role": role, "content": content}]
+
+        # use default tools if not specified. allow overrides
+        if not tools:
+            tools = self.manager.tools
+            
+        async for token in self._recv_stream(self._request(context, tools=(tools if use_tools else None), stream=True, **kwargs)):
+            yield token
+
+    async def _recv(self, response, **kwargs):
         """takes a response object and extracts the message from it, handling tool calls if needed"""
 
         final_content = None
@@ -98,17 +122,17 @@ class APIClient():
 
         # handle tool calls, if any
         if response_main.message.tool_calls:
-            tool_results = await self.manager.handle_tool_calls(response_main.message.tool_calls, channel)
+            tool_results = await self.manager.handle_tool_calls(response_main.message.tool_calls)
             if tool_results:
                 final_content += str(tool_results)
 
         # add it to context
-        if add_turn:
+        if kwargs.get("add_turn"):
             self.insert_turn("assistant", final_content)
 
         return final_content
 
-    async def recv_stream(self, response, channel=None, use_tools=True, add_turn=True):
+    async def _recv_stream(self, response, use_tools=True, add_turn=True):
         """takes a response object and extracts the message from it, handling tool calls if needed. streaming version"""
         final_tool_calls = []
         tool_call_buffer = {}
@@ -144,7 +168,7 @@ class APIClient():
             if final_tool_calls:
                 try:
                     tokens.append("\n")
-                    toolcall_results = await self.manager.handle_tool_calls(final_tool_calls, channel)
+                    toolcall_results = await self.manager.handle_tool_calls(final_tool_calls)
                     if toolcall_results:
                         for word in toolcall_results:
                             tokens.append(word)
