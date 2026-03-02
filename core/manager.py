@@ -91,18 +91,18 @@ class Manager:
         details_string = details_string.strip()
 
         # automatically put persistent memories in the prompt
-        persistent_memories = []
-        for mem in self.memory.get_persistent().copy():
-            filtered_mem = {
-                "id": mem.get("id"),
-                "content": mem.get("content")
-            }
-            persistent_memories.append(filtered_mem)
+        # persistent_memories = []
+        # for mem in self.memory.get_persistent().copy():
+        #     filtered_mem = {
+        #         "id": mem.get("id"),
+        #         "content": mem.get("content")
+        #     }
+        #     persistent_memories.append(filtered_mem)
 
         persistent_memories_display = json.dumps(persistent_memories, indent=2)
         full_prompt = "\n\n".join([
             f"# Session context\n{details_string}",
-            f"# Important memories\n{persistent_memories_display}",
+            # f"# Important memories\n{persistent_memories_display}",
             f"# Your identity\n{system_prompt}"
         ])
 
