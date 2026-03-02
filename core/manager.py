@@ -44,6 +44,10 @@ class Manager:
         tasks.append(asyncio.create_task(self.scheduler.run()))
 
         # load channels
+        if not core.config.get("channels"):
+            print("ERROR: At least one channel must be enabled in the config! Try the `cli` channel for a basic terminal UI.")
+            exit(1)
+
         core.log("init", "loading channels")
         import channels
         for channel in channels.get_all():
@@ -58,16 +62,22 @@ class Manager:
             tasks.append(asyncio.create_task(channel.run()))
             core.log("init", f"started channel {channel_name}")
 
-        core.log("init", "loading modules")
-        loaded_module_names = []
         # load modules
-        for module in modules.get_all():
-            # only load enabled modules
-            module_name_snakecase = core.modules.get_name(module)
-            if module_name_snakecase in core.config.get("modules", []):
-                await self.add_module_class(module)
-                loaded_module_names.append(module_name_snakecase)
-        core.log("init", f"modules loaded: {', '.join(loaded_module_names)}")
+        if core.config.get("modules"):
+            core.log("init", "loading modules")
+            loaded_module_names = []
+            for module in modules.get_all():
+                # only load enabled modules
+                module_name_snakecase = core.modules.get_name(module)
+                if module_name_snakecase in core.config.get("modules", []):
+                    await self.add_module_class(module)
+                    loaded_module_names.append(module_name_snakecase)
+            core.log("init", f"modules loaded: {', '.join(loaded_module_names)}")
+        else:
+            core.log("init", "all modules disabled in config")
+
+        if core.config.get("context_window") != "on":
+            core.log("init", "context window is disabled")
 
         # run everything
         await asyncio.gather(*tasks)

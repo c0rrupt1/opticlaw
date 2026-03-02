@@ -50,6 +50,9 @@ class Channel:
                     tool_list.append(tool.get("function").get("name"))
                 return "\n".join(tool_list)
             case "sysprompt":
+                if not core.config.get("context_window"):
+                    return "CONTEXT DISABLED"
+
                 sysprompt = await self.manager.get_system_prompt()
                 if sysprompt:
                     return sysprompt

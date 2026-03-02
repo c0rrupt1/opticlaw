@@ -64,11 +64,17 @@ class APIClient():
 
         return context
 
-    async def send(self, role: str, content: str, system_prompt=True, channel=None, use_context=True, use_tools=True, tools=None, add_turn=True, **kwargs):
+    async def send(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, **kwargs):
         """send a message to the LLM. returns a string"""
 
         if channel:
             self.manager.channel = channel
+
+        if use_context == None and use_context != False:
+            config_context = core.config.get("context_window")
+            if config_context:
+                # allow disabling context via the config file
+                use_context = True if core.config.get("context_window").lower() == "on" else False
 
         context = []
         if use_context:
@@ -88,11 +94,17 @@ class APIClient():
             core.log_error("error while sending request to AI", e)
             return None
 
-    async def send_stream(self, role: str, content: str, system_prompt=True, channel=None, use_context=True, use_tools=True, tools=None, add_turn=True, **kwargs):
+    async def send_stream(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, **kwargs):
         """send a message to the LLM. is an iterable async generator"""
 
         if channel:
             self.manager.channel = channel
+
+        if use_context == None and use_context != False:
+            config_context = core.config.get("context_window")
+            if config_context:
+                # allow disabling context via the config file
+                use_context = True if core.config.get("context_window").lower() == "on" else False
 
         context = []
         if use_context:

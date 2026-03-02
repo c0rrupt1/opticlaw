@@ -3,7 +3,7 @@ import core
 class Identity(core.module.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.identity = core.storage.Storage("identity", type="text")
+        self.identity = core.storage.StorageList("identity", type="text")
 
     async def on_system_prompt(self):
         identity = self.identity[0] if len(self.identity) > 0 else None

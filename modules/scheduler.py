@@ -22,7 +22,7 @@ async def schedule_callback(module, instructions: str):
 
 class Scheduler(core.module.Module):
     async def on_ready(self):
-        self._schedule = core.storage.Storage("schedule", type="json")
+        self._schedule = core.storage.StorageList("schedule", type="json")
 
         # load from stored schedule
         if self._schedule:

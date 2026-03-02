@@ -9,8 +9,8 @@ cached_mem = None
 class Memory(core.module.Module):
     def __init__(self, *args, **kwargs):
         super().__init__( *args, **kwargs)
-        self._mem = core.storage.Storage("memory", type="msgpack")
-        self._mem_deleted = core.storage.Storage("deleted_memories", type="json")
+        self._mem = core.storage.StorageList("memory", type="msgpack")
+        self._mem_deleted = core.storage.StorageList("deleted_memories", type="json")
         self.max_pinned = 10
 
     async def on_system_prompt(self):
