@@ -8,11 +8,14 @@ if not os.path.exists(DATADIR):
 
 class Storage(list):
     """subclassed list that handles storage of data, uses msgpack format for speed and small size"""
-    def __init__(self, file_path, *args, **kwargs):
+    def __init__(self, file_path, manager=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.path = core.get_path(os.path.join(DATADIR, file_path))
         self.name = os.path.basename(self.path)
+
+        if manager:
+            self.manager = manager
 
         if os.path.exists(self.path):
             self.load()

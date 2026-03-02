@@ -20,7 +20,9 @@ class Manager:
         self.channels = {}
         self.tool_classes = []
         self.tools = []
-        self.memory = core.memory.Memory("memory")
+        self.memory = core.memory.Memory("memory", manager=self)
+        self.deleted_memories = core.memory.Memory("deleted_memories", manager=self)
+        #self.history = core.memory.History("history", manager=self)
 
     def connect(self, *args, **kwargs):
         args = (self,)+args
@@ -81,8 +83,7 @@ class Manager:
             "platform": platform.platform(),
             "architecture": platform.machine() if platform.machine() else "unknown",
             "hostname": platform.node(),
-            "home dir": os.path.expanduser("~"),
-            "working directory": os.getcwd()
+            "home dir": os.path.expanduser("~")
         }
 
         details_string = ""
@@ -90,19 +91,19 @@ class Manager:
             details_string += f"{key}: {value}\n"
         details_string = details_string.strip()
 
-        # automatically put persistent memories in the prompt
-        # persistent_memories = []
-        # for mem in self.memory.get_persistent().copy():
-        #     filtered_mem = {
-        #         "id": mem.get("id"),
-        #         "content": mem.get("content")
-        #     }
-        #     persistent_memories.append(filtered_mem)
+        # automatically put pinned memories in the prompt
+        pinned_memories = []
+        for mem in self.memory.get_pinned():
+            filtered_mem = {
+                "id": mem.get("id"),
+                "content": mem.get("content")
+            }
+            pinned_memories.append(filtered_mem)
 
-        # persistent_memories_display = json.dumps(persistent_memories, indent=2)
+        pinned_memories_json = json.dumps(pinned_memories)
         full_prompt = "\n\n".join([
             f"# Session context\n{details_string}",
-            # f"# Important memories\n{persistent_memories_display}",
+            f"# Pinned memories\n{pinned_memories_json}",
             f"# Your identity\n{system_prompt}"
         ])
 
