@@ -3,14 +3,10 @@ import os
 import sys
 import subprocess
 import shlex
+import resource
 import tempfile
 import shutil
 
-using_linux = False
-if sys.platform.lower() == "linux":
-    import resource
-    using_linux = True
-    core.log("shell exec", "linux detected - extra sandbox security applied")
 
 class ShellSandbox(core.module.Module):
     """Enables the AI to run shell commands. Restricted to a temporary directory."""
@@ -30,6 +26,13 @@ class ShellSandbox(core.module.Module):
         # 3. Create new session ID (prevents terminal hijacking)
         os.setsid()
 
+    async def on_ready(self):
+        self.using_linux = False
+        if sys.platform.lower() == "linux":
+            import resource
+            self.using_linux = True
+            core.log("shell exec", "linux detected - extra sandbox security applied")
+
     async def exec(self, command: str, timeout: int = 30) -> dict:
         """
         Execute a command safely in a temporary sandbox directory.
@@ -38,6 +41,7 @@ class ShellSandbox(core.module.Module):
         You MUST NOT use shell features like:
             - Pipes (`|`) or redirection (`>`)
             - Shell variables/expansions
+        using_linux = False
             - Background processes (`&`)
             - Complex command chaining
         Use simple commands without chaining.
@@ -58,15 +62,10 @@ class ShellSandbox(core.module.Module):
                 capture_output=True,
                 text=True,
                 cwd=workdir,
-                preexec_fn=self._set_limits if using_linux else os.setsid,
+                preexec_fn=self._set_limits if self.using_linux else os.setsid,
             )
 
-            print({
-                'returncode': result.returncode,
-                'stdout': result.stdout,
-                'stderr': result.stderr,
-                'timed_out': False
-            })
+            await self.manager.channel.announce(result.stdout)
 
             return {
                 'returncode': result.returncode,

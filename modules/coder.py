@@ -66,7 +66,7 @@ class Coder(core.module.Module):
                 if isinstance(content, dict):
                     # If content is a dict, it represents a directory.
                     os.makedirs(target_path, exist_ok=True)
-                    await self.channel.announce(f"Created directory: {target_path}")
+                    await self.manager.channel.announce(f"Created directory: {target_path}")
                     await _build_structure(target_path, content)
                 elif isinstance(content, list):
                     # If content is a list, it represents files in a directory.
@@ -77,18 +77,18 @@ class Coder(core.module.Module):
                         # Create an empty file (or overwrite existing).
                         with open(file_path, "w") as f:
                             pass
-                        await self.channel.announce(f"Created file: {file_path}")
+                        await self.manager.channel.announce(f"Created file: {file_path}")
 
         # Define the base path for the project
         base_path = self._get_project_path(project_name)
 
         try:
             os.makedirs(base_path, exist_ok=True)
-            await self.channel.announce(f"Initializing project: {project_name} at {base_path}")
+            await self.manager.channel.announce(f"Initializing project: {project_name} at {base_path}")
             await _build_structure(base_path, file_structure)
-            await self.channel.announce("Project structure creation complete.")
+            await self.manager.channel.announce("Project structure creation complete.")
         except OSError as e:
-            await self.channel.announce(f"Error creating project structure: {e}")
+            await self.manager.channel.announce(f"Error creating project structure: {e}")
 
     async def read_file(self, project_name: str, file_path: list):
         """

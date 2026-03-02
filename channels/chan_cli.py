@@ -4,7 +4,7 @@ import prompt_toolkit.patch_stdout
 
 class Cli(core.channel.Channel):
     async def run(self):
-        core.log("cli", "Welcome to opticlaw!")
+        await self.announce("Welcome to opticlaw!")
 
         with prompt_toolkit.patch_stdout.patch_stdout():
             prompt_session = prompt_toolkit.PromptSession()

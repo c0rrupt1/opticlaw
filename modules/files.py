@@ -43,7 +43,7 @@ class Files(core.module.Module):
                 "type": file_type,
                 "size": sizeof_format(int(
                     # depends on if it's a file or folder'
-                    await get_dir_size(file_path, self.channel) if file_type == "directory" else os.path.getsize(file_path)
+                    await get_dir_size(file_path, self.manager.channel) if file_type == "directory" else os.path.getsize(file_path)
                 ))
             }
 
@@ -58,7 +58,7 @@ class Files(core.module.Module):
             # dont back up when theres nothing to overwrite
             return False
 
-        await self.channel.announce(f"backing up {path}..")
+        await self.manager.channel.announce(f"backing up {path}..")
 
         timestamp = datetime.datetime.now().strftime("%d%M%Y%H%M%S")
         shutil.copy(path, f"{path}.{timestamp}.old")
@@ -82,7 +82,7 @@ class Files(core.module.Module):
     async def write_file(self, path: str, body: str) -> dict:
         """write to file. always makes a backup for safety."""
 
-        await self.channel.announce(f"writing to file {path}:\n---\n```{body}```\n---\n")
+        await self.manager.channel.announce(f"writing to file {path}:\n---\n```{body}```\n---\n")
 
         # first, make a backup
         try:
@@ -101,7 +101,7 @@ class Files(core.module.Module):
         if not os.path.exists(path):
             return self.result("file did not exist", False)
 
-        await self.channel.announce(f"appending to file {path}:\n---\n```{body}```\n---\n")
+        await self.manager.channel.announce(f"appending to file {path}:\n---\n```{body}```\n---\n")
 
         # first, make a backup
         try:
@@ -119,7 +119,7 @@ class Files(core.module.Module):
     async def move_file(self, src_path: str, target_path: str) -> dict:
         """moves a file from src_path to target_path. can also be used to rename files. always use absolute paths for both src_path and target_path!"""
 
-        await self.channel.announce(f"mv {src_path} -> {target_path}")
+        await self.manager.channel.announce(f"mv {src_path} -> {target_path}")
 
         # first, make a backup
         try:
@@ -183,7 +183,7 @@ class Files(core.module.Module):
         if not os.path.exists(trash_path):
             os.mkdir(trash_path)
 
-        await self.channel.announce(f"trashing file {path}")
+        await self.manager.channel.announce(f"trashing file {path}")
 
         try:
             dest_path = os.path.join(trash_path, os.path.basename(path))
