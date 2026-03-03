@@ -548,7 +548,7 @@ HTML_TEMPLATE = '''
                     // Get existing content (if any partial response was streamed)
                     let existingContent = currentAiMsg.innerText || '';
                     // Remove any existing timestamp from the content
-                    existingContent = existingContent.replace(/\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s*$/i, '').trim();
+                    existingContent = existingContent.replace(/\\s*\\d{1,2}:\\d{2}\\s*(?:AM|PM)?\\s*$/i, '').trim();
 
                     // Show stopped message
                     if (existingContent) {
@@ -803,7 +803,7 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
-class WebUi(core.channel.Channel):
+class Webui(core.channel.Channel):
     """
     A web-based channel for communicating with the AI through a browser interface.
     """
