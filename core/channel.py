@@ -14,6 +14,7 @@ class Channel:
 /new            start a new session (clears context window)
 /clear          same as /new
 /sysprompt      show current system prompt
+/prompts        show which modules are injecting prompts into the system prompt
 /context        show current context window
 /tools          list tools available to the AI
 
@@ -61,14 +62,46 @@ class Channel:
                 modules_disabled_str = "\n".join(core.config.get("modules_disabled"))
                 modules_loaded_str = "\n".join(self.manager.modules.keys())
 
-                return f"Loaded:\n{modules_loaded_str}\n\nDisabled in config:\n{modules_disabled_str}\n"
+                return f"== loaded ==\n{modules_loaded_str}\n\n== disabled ==\n{modules_disabled_str}\n"
+            case "prompts":
+                enabled = []
+                no_prompt = []
+                disabled = []
+                for module_name, module in self.manager.modules.items():
+                    has_sysprompt = True if await module.on_system_prompt() else False
+
+                    if has_sysprompt and (module_name not in core.config.get("modules_disable_prompts")):
+                        enabled.append(module_name)
+                    elif module_name not in core.config.get("modules_disable_prompts"):
+                        no_prompt.append(module_name)
+                    else:
+                        disabled.append(module_name)
+
+                enabled_str = "\n".join(enabled)
+                no_prompt_str = "\n".join(no_prompt)
+                disabled_str = "\n".join(disabled)
+                return f"== modules with active prompts ==\n{enabled_str}\n\n== modules that don't include prompts ==\n{no_prompt_str}\n\n== modules with disabled prompts ==\n{disabled_str}"
+
             case "module":
                 return "not implemented yet"
             case "tools":
-                tool_list = []
+                tool_map = {}
                 for tool in self.manager.tools:
-                    tool_list.append(tool.get("function").get("name"))
-                return "\n".join(tool_list)
+                    tool_name = tool.get("function").get("name")
+                    module_name = tool_name.split("_")[0]
+
+                    if module_name not in tool_map.keys():
+                        tool_map[module_name] = []
+
+                    tool_map[module_name].append(tool_name)
+
+                tool_map_display = []
+                tool_map_display.append("enabled tools:")
+                for module_name, tools in tool_map.items():
+                    tools_display = "\n".join(tools)
+                    tool_map_display.append(f"== {module_name} ==\n{tools_display}")
+
+                return "\n\n".join(tool_map_display)
             case "sysprompt":
                 if not core.config.get("context_window"):
                     return "CONTEXT DISABLED"
