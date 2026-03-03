@@ -383,8 +383,7 @@ HTML_TEMPLATE = '''
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
             resize: none;
-            height: 44px;
-            min-height: 36px;
+            min-height: 44px;
             max-height: 200px;
             overflow: hidden;
             font-family: inherit;
@@ -721,8 +720,16 @@ HTML_TEMPLATE = '''
         }
 
         function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+            if (!textarea.value) {
+                textarea.style.height = '44px';
+            } else {
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+            }
+        }
+        function clearInput() {
+            inputField.value = '';
+            autoResize(inputField);
         }
 
         async function stopGeneration() {
@@ -876,13 +883,13 @@ HTML_TEMPLATE = '''
             const message = inputField.value.trim();
             if (!message) return;
             if (message.startsWith('/')) {
-                inputField.value = '';
+                clearInput();
                 await sendCommand(message);
                 return;
             }
             if (isStreaming) return;
 
-            inputField.value = '';
+            clearInput();
 
             const timestamp = formatTime();
             addMessage('user', message);
