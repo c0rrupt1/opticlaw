@@ -4,7 +4,11 @@ This is not your average claw agent! This is a modular, token-efficient AI agent
 
 AI Disclaimer: Everything in opticlaw was coded by hand, with the exception of  chan_web.py (the Web UI channel). Here and there I asked the AI how to do certain things in Python, but no code was inserted without me personally auditing it and modifying it. This is not a vibe-coded project.
 
+<img height="480" alt="image" src="https://github.com/user-attachments/assets/f2b66d2f-1c8b-45ba-8109-36caa03afb3c" />  <img height="480" alt="image" src="https://github.com/user-attachments/assets/38aa9cbc-33a2-4b3f-a048-840e116f9c93" /> <img height="480" alt="image" src="https://github.com/user-attachments/assets/7a2cc2e9-731b-4043-8312-e3f0e78a5189" /> <img height="480" alt="image" src="https://github.com/user-attachments/assets/f82043b4-24b5-4321-89c0-941ab262e982" /> 
+
 Features:
+- Connects to any OpenAI API-compatible backend. That includes local AI (llamacpp, ollama, koboldcpp, and so on) and many cloud AI providers.
+- Fully private and self-hosted, if you want it to be. You could also run it on a cloud server.
 - Modular. You can turn any component on or off, including what other claw clones consider core components. Shell access is disabled by default for security.
 - Supports multiple communication channels. Right now that's the terminal, web UI, and discord, but i'll be adding more.
 - Scheduler system, like openclaw's cronjobs but written from scratch
