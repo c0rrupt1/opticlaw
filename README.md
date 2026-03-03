@@ -32,7 +32,10 @@ Run it once. It will create a folder called `data`, and inside it, a file called
 
 # How to create your own channel
 
-It's really simple! It's just a python class with a few special methods/functions. If you're familiar with python, this'll be very easy for you:
+It's really simple! It's just a python class with a few special methods/functions.
+Modules and channels get their name by translating the class's CamelCase name to a snake_case name. so MyModule becomes my_module in the config file and everywhere else in opticlaw.
+
+If you're familiar with python, this'll be very easy for you:
 
 ```python
 import core
