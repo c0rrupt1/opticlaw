@@ -383,8 +383,6 @@ class Manager:
             if turn.get("role") == "user":
                 user_last_turn = turn
 
-        self.API.trim_turns()
-
         prompt = self.API._turns+[{"role": "system", "content": "If the tool response provides sufficient answers, tell the user the results. If not, consider if you need to use another tool? If so, call it."}]
 
         try:
@@ -395,3 +393,5 @@ class Manager:
             )
         except Exception as e:
             core.log_error(f"error while processing tool results", e)
+            if self.channel:
+                await self.channel.announce(f"error while processing tool results: {e}")

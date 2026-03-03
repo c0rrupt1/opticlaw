@@ -18,13 +18,13 @@ class APIClient():
         self._model = model
         self._turns = []
 
-    def insert_turn(self, role: str, content: str):
+    async def insert_turn(self, role: str, content: str):
         """inserts a turn (message with role and content) into context, trimming when needed"""
 
-        self.trim_turns()
+        await self.trim_turns()
         return self._turns.append({"role": role, "content": content})
 
-    def trim_turns(self, max_turns: int = None, max_tokens: int = None):
+    async def trim_turns(self, max_turns: int = None, max_tokens: int = None):
         """trims context to keep token consumption low"""
 
         if not max_turns:
@@ -35,6 +35,8 @@ class APIClient():
 
         while len(self._turns) > max_turns or len(str(self._turns)) > max_tokens:
             self._turns.pop(0)
+        if len(str(self._turns)) > max_tokens and self.manager.channel:
+                await self.manager.channel.announce("input was too large! context size trimmed.")
         return len(self._turns) <= max_turns
 
     def _request(self, context, debug=False, **kwargs):
@@ -99,7 +101,7 @@ class APIClient():
         context = []
         if use_context:
             if add_turn:
-                self.insert_turn(role, content)
+                await self.insert_turn(role, content)
             context = await self.build_context(system_prompt=system_prompt)
         else:
             context = [{"role": role, "content": content}]
@@ -112,6 +114,8 @@ class APIClient():
             return await self._recv(self._request(context, tools=(tools if use_tools else None), system_prompt=system_prompt, use_context=use_context, use_tools=use_tools, add_turn=add_turn, debug=debug, **kwargs))
         except Exception as e:
             core.log_error("error while sending request to AI", e)
+            if self.manager.channel:
+                await self.manager.channel.announce(f"error while sending request to AI: {e}")
             return None
 
     async def send_stream(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, debug=False, **kwargs):
@@ -126,7 +130,7 @@ class APIClient():
         context = []
         if use_context:
             if add_turn:
-                self.insert_turn(role, content)
+                await self.insert_turn(role, content)
             context = await self.build_context(system_prompt=system_prompt)
         else:
             context = [{"role": role, "content": content}]
@@ -135,16 +139,27 @@ class APIClient():
         if not tools:
             tools = self.manager.tools
             
-        async for token in self._recv_stream(self._request(context, tools=(tools if use_tools else None), stream=True, debug=debug, **kwargs), **kwargs, debug=debug):
-            yield token
+        try:
+            async for token in self._recv_stream(self._request(context, tools=(tools if use_tools else None), stream=True, debug=debug, **kwargs), **kwargs, debug=debug):
+                yield token
+        except:
+            core.log_error("error while sending request to AI", e)
+            if self.manager.channel:
+                await self.manager.channel.announce(f"error while sending request to AI: {e}")
 
     async def _recv(self, response, debug=False, **kwargs):
         """takes a response object and extracts the message from it, handling tool calls if needed"""
 
         final_content = None
 
-        # normal non-streaming mode
-        response_main = response.choices[0]
+        try:
+            # normal non-streaming mode
+            response_main = response.choices[0]
+        except Exception as e:
+            core.log_error("error while receiving response from AI", e)
+            if self.manager.channel:
+                await self.manager.channel.announce(f"error while receiving response from AI: {e}")
+            return None
 
         # extract message content
         final_content = response_main.message.content or ""
@@ -157,7 +172,7 @@ class APIClient():
 
         # add it to context
         if kwargs.get("add_turn"):
-            self.insert_turn("assistant", final_content)
+            await self.insert_turn("assistant", final_content)
 
         return final_content
 
@@ -170,45 +185,50 @@ class APIClient():
         if not response:
             return
 
-        for chunk in response:
-            streamed_token = chunk.choices[0].delta
-            if debug:
-                core.log("debug:stream_chunk", chunk.choices[0].delta)
+        try:
+            for chunk in response:
+                streamed_token = chunk.choices[0].delta
+                if debug:
+                    core.log("debug:stream_chunk", chunk.choices[0].delta)
 
-            # yield the current token in the stream
-            if streamed_token.content:
-                tokens.append(streamed_token.content)
-                yield streamed_token.content
+                # yield the current token in the stream
+                if streamed_token.content:
+                    tokens.append(streamed_token.content)
+                    yield streamed_token.content
 
-            # extract tool calls, if any
-            if streamed_token.tool_calls and use_tools:
-                # take the streamed tool call bits and mesh them together into a completed tool call array
-                for tool_call in streamed_token.tool_calls:
-                    index = tool_call.index
+                # extract tool calls, if any
+                if streamed_token.tool_calls and use_tools:
+                    # take the streamed tool call bits and mesh them together into a completed tool call array
+                    for tool_call in streamed_token.tool_calls:
+                        index = tool_call.index
 
-                    if index not in tool_call_buffer:
-                        tool_call_buffer[index] = tool_call
+                        if index not in tool_call_buffer:
+                            tool_call_buffer[index] = tool_call
 
-                    tool_call_buffer[index].function.arguments += tool_call.function.arguments
+                        tool_call_buffer[index].function.arguments += tool_call.function.arguments
 
-        if use_tools:
-            for index, tool_call in tool_call_buffer.items():
-                final_tool_calls.append(tool_call)
+            if use_tools:
+                for index, tool_call in tool_call_buffer.items():
+                    final_tool_calls.append(tool_call)
 
-            # handle tool calls, if any
-            if final_tool_calls:
-                try:
-                    tokens.append("\n")
-                    toolcall_results = await self.manager.handle_tool_calls(final_tool_calls)
-                    if toolcall_results:
-                        for word in toolcall_results:
-                            tokens.append(word)
-                            yield word
-                except Exception as e:
-                    core.log_error(f"error while handling tool calls", e)
+                # handle tool calls, if any
+                if final_tool_calls:
+                    try:
+                        tokens.append("\n")
+                        toolcall_results = await self.manager.handle_tool_calls(final_tool_calls)
+                        if toolcall_results:
+                            for word in toolcall_results:
+                                tokens.append(word)
+                                yield word
+                    except Exception as e:
+                        core.log_error(f"error while handling tool calls", e)
 
-        # add it to context
-        if add_turn:
-            final_content = "".join(tokens)
-            self.insert_turn("assistant", final_content)
+            # add it to context
+            if add_turn:
+                final_content = "".join(tokens)
+                await self.insert_turn("assistant", final_content)
+        except Exception as e:
+            core.log_error("error while receiving response from AI", e)
+            if self.manager.channel:
+                await self.manager.channel.announce(f"error while receiving response from AI: {e}")
 
