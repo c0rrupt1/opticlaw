@@ -386,7 +386,7 @@ HTML_TEMPLATE = '''
             height: 44px;
             min-height: 36px;
             max-height: 200px;
-            overflow-y: auto;
+            overflow: hidden;
             font-family: inherit;
             line-height: 1.4;
         }
@@ -572,7 +572,7 @@ HTML_TEMPLATE = '''
                 </svg>
             </button>
             <input type="file" id="file-input" onchange="handleFileUpload(event)">
-            <textarea id="message" placeholder="Type a message... (or /new for new chat)" onkeydown="handleKeyDown(event)" rows=1></textarea>
+            <textarea id="message" placeholder="Type a message.." onkeydown="handleKeyDown(event)" rows=1></textarea>
             <script>
             document.getElementById('message').addEventListener('input', function() {
                 autoResize(this);
@@ -707,10 +707,17 @@ HTML_TEMPLATE = '''
         }
 
         function handleKeyDown(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                send();
+            // Check if we're on mobile
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (!isMobile) {
+                // Desktop: Enter sends, Shift+Enter adds newline
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    send();
+                }
             }
+            // Mobile: Enter always adds newline, user clicks Send button
         }
 
         function autoResize(textarea) {
