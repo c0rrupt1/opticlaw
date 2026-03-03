@@ -4,6 +4,8 @@ import asyncio
 import core
 
 async def schedule_callback(module, instructions: str):
+    # TODO: fix broken id's (ai cant handle changing indexes, consider storing id in the data instead of using list index)
+
     if not module.manager.channel:
         return False
 

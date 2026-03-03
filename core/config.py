@@ -22,6 +22,9 @@ default_config = {
 
 for channel in channels.get_all(respect_config=False):
     channel_name = core.module.get_name(channel)
+    if channel == "debug":
+        continue
+
     if channel_name != "cli":
         default_config["channels_disabled"].append(channel_name)
 

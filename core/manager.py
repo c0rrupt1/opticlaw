@@ -79,6 +79,10 @@ class Manager:
         if not core.config.get("context_window"):
             core.log("init", "context window is disabled")
 
+        print()
+        print("\n".join(await self.get_status()))
+        print("---\n")
+
         # run everything
         await asyncio.gather(*tasks)
 
@@ -109,7 +113,7 @@ class Manager:
         system_prompt = sysprompt_top+sysprompt_middle+sysprompt_bottom
 
         if system_prompt:
-            prompt_length = len("".join(system_prompt))
+            prompt_length = len("".join(system_prompt).split())
             prompt_length_text = "System prompt length: {prompt_length} words."
             prompt_length += len(prompt_length_text.split())
             prompt_length_text = prompt_length_text.replace("{prompt_length}", str(prompt_length))
@@ -119,6 +123,25 @@ class Manager:
             return "\n\n".join(system_prompt)
         else:
             return ""
+
+    async def get_status(self):
+        status_list = []
+        status_list.append("== server ==")
+        status_list.append("API server: " + str(core.config.get("api_url")))
+        if "webui" in core.config.get("channels"):
+            status_list.append(f"WebUI: {core.config.get('webui_host')}:{core.config.get('webui_port')}")
+        status_list.append("AI model: " + str(core.config.get("model")))
+
+        status_list.append("")
+
+        status_list.append("== context size ==")
+        ctx_string = ""
+        context_size = await self.API.get_context_size()
+        for key, value in context_size.items():
+            ctx_string += f"{key}: {value}\n"
+        status_list.append(ctx_string)
+
+        return status_list
 
     # --- tools ---
     def parse_tool_docstring(self, docstring):

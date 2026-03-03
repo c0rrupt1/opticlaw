@@ -12,6 +12,7 @@ class Channel:
         self.manager = manager
         self._help = """
 /new            start a new session (clears context window)
+/status         show status info
 /models         list available models
 /model          switch model
 /modules        list modules
@@ -41,6 +42,8 @@ class Channel:
                 return "New session started."
             case "help":
                 return self._help
+            case "status":
+                return "\n".join(await self.manager.get_status())
             case "models":
                 return "not implemented yet"
             case "model":
@@ -69,13 +72,20 @@ class Channel:
                 if not core.config.get("context_window"):
                     return "CONTEXT DISABLED"
 
-                context = await self.manager.API.build_context(system_prompt=False)
+                context = await self.manager.API.build_context(system_prompt=True)
                 if not context:
                     return "BLANK"
 
                 context_display = []
                 for turn in context:
                     context_display.append(f"== {turn.get('role')} ==\n{turn.get('content')}")
+
+                ctx_string = ""
+                context_size = await self.manager.API.get_context_size()
+                for key, value in context_size.items():
+                    ctx_string += f"{key}: {value}\n"
+                context_display.append("---")
+                context_display.append(ctx_string)
 
                 return "\n\n".join(context_display)
             case "restart":
@@ -118,3 +128,7 @@ class Channel:
         for channel_name, channel in self.manager.channels.items():
             await channel.announce(message)
         return
+
+    async def ask(self, message: str):
+        """sends a message in the channel and then intercepts communication for one turn so that user can be asked for input without that input being sent to the LLM. useful for menus."""
+        pass

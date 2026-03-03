@@ -37,15 +37,21 @@ class APIClient():
             self._turns.pop(0)
         return len(self._turns) <= max_turns
 
-    def _request(self, context, **kwargs):
+    def _request(self, context, debug=False, **kwargs):
         """send a request to the LLM and return the response object"""
 
-        response = self._AI.chat.completions.create(
-            model=self._model,
-            messages=context,
-            tools=kwargs.get("tools", None),
-            stream=kwargs.get("stream", False)
-        )
+        req = {
+            "model": self._model,
+            "messages": context,
+            "tools": kwargs.get("tools", None),
+            "stream": kwargs.get("stream", False)
+        }
+
+        if debug:
+            core.log("debug:request", str(req))
+        response = self._AI.chat.completions.create(**req)
+        if debug:
+            core.log("debug:response", str(response))
 
         #core.log("request", f"CONTEXT\n{context}\n\nKWARGS\n{kwargs}")
 
@@ -64,7 +70,24 @@ class APIClient():
 
         return context
 
-    async def send(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, **kwargs):
+    async def get_context_size(self):
+        turn_history = await self.build_context(system_prompt=False)
+        sysprompt = await self.manager.get_system_prompt()
+        turn_hist_size_chars = len(str(turn_history))
+        turn_hist_size_words = len(str(turn_history).split())
+        sysprompt_size_chars = len(str(sysprompt))
+        sysprompt_size_words = len(str(sysprompt).split())
+
+        combined_size_chars = turn_hist_size_chars+sysprompt_size_chars
+        combined_size_words = turn_hist_size_words+sysprompt_size_words
+
+        return {
+            "system prompt size": f"{sysprompt_size_chars} characters | {sysprompt_size_words} words",
+            "turn history size": f"{turn_hist_size_chars} characters | {sysprompt_size_words} words",
+            "total size": f"{combined_size_chars} characters | {combined_size_words} words"
+        }
+
+    async def send(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, debug=False, **kwargs):
         """send a message to the LLM. returns a string"""
 
         if channel:
@@ -86,12 +109,12 @@ class APIClient():
             tools = self.manager.tools
 
         try:
-            return await self._recv(self._request(context, tools=(tools if use_tools else None), system_prompt=system_prompt, use_context=use_context, use_tools=use_tools, add_turn=add_turn, **kwargs))
+            return await self._recv(self._request(context, tools=(tools if use_tools else None), system_prompt=system_prompt, use_context=use_context, use_tools=use_tools, add_turn=add_turn, debug=debug, **kwargs))
         except Exception as e:
             core.log_error("error while sending request to AI", e)
             return None
 
-    async def send_stream(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, **kwargs):
+    async def send_stream(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_turn=True, debug=False, **kwargs):
         """send a message to the LLM. is an iterable async generator"""
 
         if channel:
@@ -112,10 +135,10 @@ class APIClient():
         if not tools:
             tools = self.manager.tools
             
-        async for token in self._recv_stream(self._request(context, tools=(tools if use_tools else None), stream=True, **kwargs)):
+        async for token in self._recv_stream(self._request(context, tools=(tools if use_tools else None), stream=True, debug=debug, **kwargs), **kwargs, debug=debug):
             yield token
 
-    async def _recv(self, response, **kwargs):
+    async def _recv(self, response, debug=False, **kwargs):
         """takes a response object and extracts the message from it, handling tool calls if needed"""
 
         final_content = None
@@ -138,7 +161,7 @@ class APIClient():
 
         return final_content
 
-    async def _recv_stream(self, response, use_tools=True, add_turn=True):
+    async def _recv_stream(self, response, use_tools=True, add_turn=True, debug=False, **kwargs):
         """takes a response object and extracts the message from it, handling tool calls if needed. streaming version"""
         final_tool_calls = []
         tool_call_buffer = {}
@@ -149,6 +172,8 @@ class APIClient():
 
         for chunk in response:
             streamed_token = chunk.choices[0].delta
+            if debug:
+                core.log("debug:stream_chunk", chunk.choices[0].delta)
 
             # yield the current token in the stream
             if streamed_token.content:
