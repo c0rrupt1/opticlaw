@@ -1564,6 +1564,7 @@ HTML_TEMPLATE = r"""
                     isConnected = true;
                     updateConnectionStatus('connected');
                     removeReconnectingMessage();
+                    lastAnnouncementId = 0;
                     clearChatUI();
                     await loadHistory();
 
