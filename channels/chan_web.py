@@ -1058,6 +1058,7 @@ HTML_TEMPLATE = r"""
             #send, #stop { padding: 12px 18px; }
             .message pre { padding: 10px; font-size: 0.85rem; }
             .copy-btn { opacity: 1; padding: 6px 10px; }
+            .shortcuts-btn { display: none; }
         }
 
         @media (max-width: 400px) {
@@ -1126,7 +1127,7 @@ HTML_TEMPLATE = r"""
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
                 </button>
-                <button class="header-btn" onclick="showShortcutsModal()" title="Keyboard shortcuts (?)">
+                <button class="header-btn shortcuts-btn" onclick="showShortcutsModal()" title="Keyboard shortcuts (?)">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
                         <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M6 16h12"></path>
@@ -3734,7 +3735,7 @@ def upload_file():
         
         # Insert the file content into the conversation
         result = f"File uploaded: {filename} ({len(content)} bytes)"
-        channel_instance.manager.API.insert_turn("user", f"[File: {filename}]\n{content[:1000]}...")
+        asyncio.run(channel_instance.manager.API.insert_turn("user", f"[File: {filename}]\n{content[:1000]}..."))
         
         return jsonify({'success': True, 'message': result})
     except Exception as e:
