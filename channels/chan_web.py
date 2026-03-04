@@ -557,6 +557,10 @@ HTML_TEMPLATE = r"""
             align-items: flex-start;
         }
 
+        .message-wrapper.user_command {
+            align-items: flex-end;
+        }
+
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -566,7 +570,7 @@ HTML_TEMPLATE = r"""
             max-width: 85%;
             padding: 12px 16px;
             border-radius: var(--radius-xl);
-            line-height: 1.6;
+            /* line-height: 1.6; */
             word-wrap: break-word;
             position: relative;
         }
@@ -635,9 +639,24 @@ HTML_TEMPLATE = r"""
             background: var(--bg-message-command);
             border: 1px solid #2a4a2a;
             font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             border-bottom-left-radius: var(--radius-sm);
             max-width: 85%;
+        }
+        .message.user_command {
+            background: var(--bg-message-command);
+            border: 1px solid #2a4a2a;
+            font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            border-bottom-right-radius: var(--radius-sm);
+        }
+
+        /* Tool messages */
+        .message.tool {
+            display: none;
+            padding: 0;
+            margin: 0;
+            position: absolute;
         }
 
         /* Message actions - now below the bubble */
@@ -688,7 +707,7 @@ HTML_TEMPLATE = r"""
             display: block;
             font-size: 0.7rem;
             color: var(--text-muted);
-            margin-top: 6px;
+            margin-top: 0px;
             opacity: 0.8;
         }
 
@@ -1292,6 +1311,7 @@ HTML_TEMPLATE = r"""
     let reconnectAttempts = 0;
     let reconnectTimer = null;
     let hasShownReconnecting = false;
+    let hasShownDisconnected = false;
     let reconnectingMsgEl = null;
 
     // Message state
@@ -1401,23 +1421,36 @@ HTML_TEMPLATE = r"""
     // History Management
     // =============================================================================
 
-    function saveHistory() {
-        localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
+    let historyLoaded = false;
+
+    async function loadHistory() {
+        try {
+            const response = await fetch('/history');
+            const data = await response.json();
+
+            if (data.messages) {
+                conversationHistory = data.messages;
+                conversationHistory.forEach((msg, index) => {
+                    createMessageElement(
+                        msg.role,
+                        msg.content,
+                        msg.timestamp || formatTime(),
+                        msg.edited || false,
+                        index
+                    );
+                });
+            }
+            historyLoaded = true;
+        } catch (e) {
+            console.error('Failed to load history:', e);
+            conversationHistory = [];
+            historyLoaded = true;
+        }
     }
 
-    function loadHistory() {
-        const saved = localStorage.getItem('chatHistory');
-        if (saved) {
-            try {
-                conversationHistory = JSON.parse(saved);
-                conversationHistory.forEach((msg, index) => {
-                    createMessageElement(msg.role, msg.content, msg.timestamp, msg.edited, index);
-                });
-            } catch (e) {
-                console.error('Failed to load history:', e);
-                conversationHistory = [];
-            }
-        }
+    function saveHistory() {
+        // No longer saving to localStorage - backend is the source of truth
+        // This function is kept for compatibility but does nothing
     }
 
     function clearChatUI() {
@@ -1489,6 +1522,7 @@ HTML_TEMPLATE = r"""
             reconnectingMsgEl = null;
         }
         hasShownReconnecting = false;
+        hasShownDisconnected = false;
     }
 
     async function checkConnection() {
@@ -1505,6 +1539,8 @@ HTML_TEMPLATE = r"""
                     isConnected = true;
                     updateConnectionStatus('connected');
                     removeReconnectingMessage();
+                    clearChatUI();
+                    await loadHistory();
 
                     if (wasReconnecting || reconnectAttempts > 0) {
                         addAnnouncement('Reconnected to server', 'info');
@@ -1525,7 +1561,10 @@ HTML_TEMPLATE = r"""
             isConnected = false;
             updateConnectionStatus('disconnected');
             removeReconnectingMessage();
-            addAnnouncement('Disconnected from server. Reconnecting...', 'info');
+            if (!hasShownDisconnected) {
+                addAnnouncement('Disconnected from server.', 'info');
+                hasShownDisconnected = true;
+            }
         }
 
         scheduleReconnect();
@@ -1535,11 +1574,9 @@ HTML_TEMPLATE = r"""
         if (reconnectTimer) clearTimeout(reconnectTimer);
 
         reconnectAttempts++;
-        const delay = Math.min(
-            CONFIG.RECONNECT_BASE_DELAY * Math.pow(CONFIG.RECONNECT_DELAY_FACTOR, Math.min(reconnectAttempts, 10)),
-            CONFIG.RECONNECT_MAX_DELAY
-        );
 
+        // attempt reconnection every second
+        const delay = 1000;
         updateConnectionStatus('connecting');
 
         if (!hasShownReconnecting) {
@@ -1625,6 +1662,9 @@ HTML_TEMPLATE = r"""
         if (role === 'ai' || role === 'user') {
             msgDiv.innerHTML = renderMarkdown(content);
             highlightCode(msgDiv);
+        } else if (role === 'tool') {
+            // hide toolcalls
+            return;
         } else {
             msgDiv.innerText = content;
         }
@@ -1997,58 +2037,71 @@ HTML_TEMPLATE = r"""
         reRenderMessagesFrom(index);
     }
 
-    async function deleteMessage(index) {
-        if (index === null || index === undefined) return;
+    async function deleteMessage(frontendIndex) {
+        if (frontendIndex === null || frontendIndex === undefined) return;
 
-        const msg = conversationHistory[index];
+        const msg = conversationHistory[frontendIndex];
         if (!msg) return;
 
-        const backendIndex = frontendToBackendIndex(index);
-        console.log('Deleting frontend index', index, '-> backend index', backendIndex);
-        console.log('Message role:', msg.role, 'content:', (msg.content || '').substring(0, 50));
-
-        // Determine confirmation message based on message type
-        let confirmMsg = 'Delete this message?';
-        if (backendIndex >= 0) {
-            confirmMsg = "Delete this message and all messages after it?\n\nThis will affect the AI's memory of the conversation.";
-        } else {
-            confirmMsg = 'Delete this message?';
+        // Commands and announcements don't exist in backend
+        if (msg.role === 'command' || msg.role === 'announce') {
+            conversationHistory.splice(frontendIndex, 1);
+            reRenderAllMessages();
+            return;
         }
 
-        if (!confirm(confirmMsg)) return;
+        if (!confirm("Delete this message and all messages after it?\n\nThis will affect the AI's memory of the conversation.")) {
+            return;
+        }
 
-        // Store old state for debugging
-        const oldHistory = [...conversationHistory];
-        console.log('Before delete - Frontend history length:', conversationHistory.length);
-
-        // Delete from frontend
-        if (backendIndex >= 0) {
-            // This message exists in backend - delete from this index onwards in both
-
-            // Delete from frontend (from index onwards)
-            conversationHistory = conversationHistory.slice(0, index);
-
-            // Delete from backend at the corresponding index
-            const result = await deleteFromBackendIndex(backendIndex);
-
-            if (!result.success) {
-                console.error('Backend delete failed, attempting full sync');
-                // Restore frontend state and do a full sync
-                conversationHistory = oldHistory;
-                await syncFullBackendContext();
-                // Now try the frontend delete again
-                conversationHistory = conversationHistory.slice(0, index);
+        // Find the backend index
+        let backendIndex = 0;
+        for (let i = 0; i <= frontendIndex; i++) {
+            const m = conversationHistory[i];
+            if (m.role === 'user' || m.role === 'ai') {
+                if (i === frontendIndex) {
+                    break;
+                }
+                backendIndex++;
             }
-        } else {
-            // This message doesn't exist in backend (announcement, command, etc.)
-            // Just remove it from frontend
-            conversationHistory.splice(index, 1);
         }
 
-        console.log('After delete - Frontend history length:', conversationHistory.length);
+        // Delete from backend
+        const result = await deleteFromBackendIndex(backendIndex);
 
-        saveHistory();
-        reRenderAllMessages();
+        if (result.success) {
+            // Reload history from backend to stay in sync
+            await reloadHistoryFromBackend();
+        } else {
+            addAnnouncement('Failed to delete message from backend', 'error');
+        }
+    }
+
+    async function reloadHistoryFromBackend() {
+        try {
+            const response = await fetch('/history');
+            const data = await response.json();
+
+            // Clear frontend
+            const wrappers = chat.querySelectorAll('.message-wrapper');
+            wrappers.forEach(wrapper => wrapper.remove());
+
+            // Reload from backend
+            if (data.messages) {
+                conversationHistory = data.messages;
+                conversationHistory.forEach((msg, index) => {
+                    createMessageElement(
+                        msg.role,
+                        msg.content,
+                        msg.timestamp || formatTime(),
+                        msg.edited || false,
+                        index
+                    );
+                });
+            }
+        } catch (e) {
+            console.error('Failed to reload history:', e);
+        }
     }
 
     function reRenderMessagesFrom(startIndex) {
@@ -2442,9 +2495,9 @@ HTML_TEMPLATE = r"""
         }
 
         const timestamp = formatTime();
-        conversationHistory.push({ role: 'user', content: cmd, timestamp: timestamp });
+        conversationHistory.push({ role: 'user_command', content: cmd, timestamp: timestamp });
         saveHistory();
-        createMessageElement('user', cmd, timestamp, false, conversationHistory.length - 1);
+        createMessageElement('user_command', cmd, timestamp, false, conversationHistory.length - 1);
 
         try {
             const response = await fetch('/send', {
@@ -2463,7 +2516,6 @@ HTML_TEMPLATE = r"""
             }
         } catch (err) {
             if (cmd.startsWith("/restart")) {
-                clearChatUI();
                 const timestamp = formatTime();
                 conversationHistory.push({ role: 'command', content: "restarting server", timestamp: timestamp });
                 saveHistory();
@@ -2787,7 +2839,10 @@ HTML_TEMPLATE = r"""
             console.error('Poll error:', err);
             isConnected = false;
             updateConnectionStatus('disconnected');
-            addAnnouncement('Disconnected from server. Reconnecting...', 'info');
+            if (!hasShownDisconnected) {
+                addAnnouncement('Disconnected from server.', 'info');
+                hasShownDisconnected = true;
+            }
             scheduleReconnect();
         }
     }
@@ -3379,19 +3434,26 @@ HTML_TEMPLATE = r"""
     // Set initial connection status
     updateConnectionStatus('connecting');
 
-    // Check connection immediately
-    setTimeout(() => {
-        checkConnection().catch(err => {
+    // Initialize the app
+    async function init() {
+        // Check connection
+        try {
+            await checkConnection();
+        } catch (err) {
             isConnected = false;
             updateConnectionStatus('disconnected');
-            addAnnouncement('Disconnected from server. Reconnecting...', 'info');
+            addAnnouncement('Disconnected from server.', 'info');
+            hasShownDisconnected = true;
             scheduleReconnect();
-        });
-    }, 100);
+        }
 
-    // Load chat history and theme
-    loadHistory();
-    loadTheme();
+        // Load theme (keep this in localStorage as it's UI preference)
+        loadTheme();
+    }
+
+    // Start the app
+    init();
+
     </script>
 </body>
 </html>
@@ -3507,7 +3569,13 @@ def poll_announcements():
     except ValueError:
         last_id = 0
     
-    messages = [msg for msg in channel_instance.announcement_queue if msg['id'] > last_id]
+    messages = []
+    for index, msg in enumerate(channel_instance.announcement_queue):
+        if msg['id'] > last_id:
+            # add it to the messages, then remove it from the announcement queue
+            messages.append(msg)
+            channel_instance.announcement_queue.pop(index)
+
     return jsonify({'messages': messages})
 
 @app.route('/stream', methods=['POST'])
@@ -3596,6 +3664,33 @@ def send_message():
     
     return jsonify({'response': response})
 
+@app.route('/history')
+def get_history():
+    """Return the current conversation history from the backend."""
+    global channel_instance
+
+    if not channel_instance or not hasattr(channel_instance, 'manager') or not hasattr(channel_instance.manager, 'API'):
+        return jsonify({'messages': []})
+
+    turns = channel_instance.manager.API._turns
+    messages = []
+
+    for i, turn in enumerate(turns):
+        # Convert backend 'assistant' to frontend 'ai'
+        role = 'ai' if turn.get('role') == 'assistant' else turn.get('role', 'user')
+        content = turn.get('content', '')
+
+        # Don't include empty content
+        if content:
+            messages.append({
+                'role': role,
+                'content': content,
+                'timestamp': None,  # Backend doesn't store timestamps, use current time
+                'index': i
+            })
+
+    return jsonify({'messages': messages})
+
 @app.route('/sync', methods=['POST'])
 def sync_context():
     """
@@ -3657,6 +3752,9 @@ def edit_message():
     turns = channel_instance.manager.API._turns
 
     if 0 <= index < len(turns):
+        if turns[index]['role'] != "user":
+            return jsonify({"success": False, error: f"Tried to edit a system message!"})
+
         old_content = turns[index]['content'][:50] if turns[index].get('content') else ''
         turns[index]['content'] = new_content
         core.log("webui", f"Edited turn {index}: '{old_content}...' -> '{new_content[:50]}...'")
@@ -3680,6 +3778,9 @@ def delete_message():
     original_count = len(turns)
 
     if 0 <= index <= len(turns):
+        if turns[index]['role'] != "user":
+            return jsonify({"success": False, error: f"Tried to delete a system message!"})
+
         removed_count = len(turns) - index
         # Keep only messages before the index
         channel_instance.manager.API._turns = turns[:index]
