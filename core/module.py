@@ -25,11 +25,11 @@ class Module:
 
     async def on_ready(self):
         """This method will run once the module is ready to be used. Use it instead of __init__() if you can."""
-        return None
+        pass
 
     async def on_background(self):
         """This method will be added as a background task that will run contineously in the background. Use it for things like schedulers, cronjobs, etc!"""
-        return False
+        pass
 
 def load(package, base_class, respect_config: bool = True):
     """
