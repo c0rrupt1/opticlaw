@@ -13,7 +13,7 @@ class APIClient():
         self.manager = manager
 
         # initialize connection to the API
-        self._AI = openai.OpenAI(*args, **kwargs)
+        self._AI = openai.AsyncOpenAI(*args, **kwargs)
 
         self._model = model
         self._turns = []
@@ -23,41 +23,88 @@ class APIClient():
     def get_model(self):
         return self._model
 
-    async def insert_turn(self, role: str, content: str):
+    def _count_tokens_local(self, messages: list) -> int:
+        """
+        Counts tokens locally using tiktoken. 
+        Used as a fallback if the API doesn't return usage data.
+        """
+        import tiktoken
+        try:
+            # Try to get the specific tokenizer for the model (e.g. gpt-4)
+            encoding = tiktoken.encoding_for_model(self._model)
+        except KeyError:
+            # Fallback to a standard encoding for unknown/custom models
+            encoding = tiktoken.get_encoding("cl100k_base")
+
+        num_tokens = 0
+        for message in messages:
+            # OpenAI message format overhead is ~4 tokens per message
+            # <im_start>{role/name}\n{content}<im_end>\n
+            num_tokens += 4
+            for key, value in message.items():
+                if value:
+                    num_tokens += len(encoding.encode(str(value)))
+
+        # Add 2-3 tokens for the assistant priming at the end
+        num_tokens += 2
+        return num_tokens
+
+    async def insert_turn(self, role: str, content: str, num_tokens=None):
         """inserts a turn (message with role and content) into context, trimming when needed"""
 
-        await self.trim_turns()
+        await self.trim_turns(num_tokens=num_tokens)
         return self._turns.append({"role": role, "content": content})
 
-    async def trim_turns(self, max_turns: int = None, max_tokens: int = None):
+    async def trim_turns(self, max_turns: int = None, max_tokens: int = None, num_tokens: int = None):
         """trims context to keep token consumption low"""
 
         if not max_turns:
             max_turns = core.config.get("max_turns", 20)
         if not max_tokens:
             # TODO: find a way to get max tokens. also count tokens instead of words
-            max_tokens = core.config.get("max_input_tokens", 16384)
+            max_tokens = core.config.get("max_context", 8192)
 
-        while len(self._turns) > max_turns or len(str(self._turns)) > max_tokens:
+        if not num_tokens:
+            # default to character length if we couldn't get the token amount
+            num_tokens = len(str(self._turns))
+
+        request_too_big = False
+        context_trimmed = False
+        while len(self._turns) > max_turns or num_tokens > max_tokens:
+            context_trimmed = True
+            if not self._turns:
+                request_too_big = True
+                # we've exhausted all turns. handle it later in this function
+                break
             self._turns.pop(0)
-        if len(str(self._turns)) > max_tokens and self.manager.channel:
-                await self.manager.channel.announce("input was too large! context size trimmed.", "error")
+
+        if self.manager.channel:
+            if request_too_big:
+                # the entire thing was too big including user's input! inform them
+                await self.manager.channel.announce("Your request exceeds the max amount of tokens allowed. Please send a smaller request!", "error")
+            elif context_trimmed:
+                await self.manager.channel.announce("Input was too large! context size trimmed.", "error")
         return len(self._turns) <= max_turns
 
-    def _request(self, context, debug=False, **kwargs):
+
+    async def _request(self, context, debug=False, tools=None, stream=False):
         """send a request to the LLM and return the response object"""
 
         req = {
             "model": self._model,
             "messages": context,
-            "tools": kwargs.get("tools", None),
-            "stream": kwargs.get("stream", False),
+            "tools": tools,
+            "stream": stream,
             "temperature": core.config.get("model_temperature", 0.2)
         }
 
+        if stream:
+            req["stream_options"] = {"include_usage": True}
+
         if debug:
             core.log("debug:request", str(req))
-        response = self._AI.chat.completions.create(**req)
+
+        response = await self._AI.chat.completions.create(**req)
         if debug:
             core.log("debug:response", str(response))
 
@@ -122,6 +169,12 @@ class APIClient():
         context = []
         if use_context:
             if add_turn:
+                # try to check how big (in tokens) the request content is
+                # num_tokens = self._count_tokens_local({"role": role, "content": content})
+                # if num_tokens > core.config.get("max_tokens", 8192):
+                #     if self.manager.channel:
+                #         self.manager.channel.announce("error: request was too big!", False)
+                #     core.log("error", "request was too big!")
                 await self.insert_turn(role, content)
             context = await self.build_context(system_prompt=system_prompt)
         else:
@@ -132,7 +185,7 @@ class APIClient():
             tools = self.manager.tools
 
         try:
-            return await self._recv(self._request(context, tools=(tools if use_tools else None), system_prompt=system_prompt, use_context=use_context, use_tools=use_tools, add_turn=add_turn, debug=debug, **kwargs))
+            return await self._recv(await self._request(context, tools=(tools if use_tools else None)), system_prompt=system_prompt, use_context=use_context, context=context, use_tools=use_tools, add_turn=add_turn, debug=debug, **kwargs)
         except Exception as e:
             core.log_error("error while sending request to AI", e)
             if self.manager.channel:
@@ -166,14 +219,14 @@ class APIClient():
             tools = self.manager.tools
 
         try:
-            async for token in self._recv_stream(self._request(context, tools=(tools if use_tools else None), stream=True, debug=debug, **kwargs), **kwargs, debug=debug):
+            async for token in self._recv_stream(await self._request(context, tools=(tools if use_tools else None), stream=True, debug=debug, **kwargs), context=context, **kwargs, debug=debug):
                 yield token
         except Exception as e:
             core.log_error("error while sending request to AI", e)
             if self.manager.channel:
                 await self.manager.channel.announce(f"error while sending request to AI: {e}", "error")
 
-    async def _recv(self, response, debug=False, **kwargs):
+    async def _recv(self, response, context=None, debug=False, **kwargs):
         """takes a response object and extracts the message from it, handling tool calls if needed"""
 
         final_content = None
@@ -197,47 +250,61 @@ class APIClient():
                 final_content += str(tool_results)
 
         # add it to context
+        token_usage = None
         if kwargs.get("add_turn"):
-            await self.insert_turn("assistant", final_content)
+            if hasattr(response, 'usage') and response.usage:
+                token_usage = response.usage.prompt_tokens
+            else:
+                # fall back to tokenizer counting if api didn't provide a token count
+                token_usage = self._count_tokens_local(context)
+
+            await self.insert_turn("assistant", final_content, num_tokens=token_usage)
 
         return final_content
 
-    async def _recv_stream(self, response, use_tools=True, add_turn=True, debug=False, **kwargs):
+    async def _recv_stream(self, response, use_tools=True, add_turn=True, context=None, debug=False, **kwargs):
         """takes a response object and extracts the message from it, handling tool calls if needed. streaming version"""
         final_tool_calls = []
         tool_call_buffer = {}
         tokens = []
 
+        token_usage = None
+
         if not response:
             return
 
         try:
-            for chunk in response:
+            async for chunk in response:
                 if self.cancel_request:
                     # allow cancelling the stream
                     if hasattr(response, "close"):
-                        response.close()
+                        await response.close()
                     return
 
-                streamed_token = chunk.choices[0].delta
-                # if debug:
-                #     core.log("debug:stream_chunk", chunk.choices[0].delta)
+                if chunk.choices:
+                    streamed_token = chunk.choices[0].delta
+                    # if debug:
+                    #     core.log("debug:stream_chunk", chunk.choices[0].delta)
 
-                # yield the current token in the stream
-                if streamed_token.content:
-                    tokens.append(streamed_token.content)
-                    yield streamed_token.content
+                    # yield the current token in the stream
+                    if streamed_token.content:
+                        tokens.append(streamed_token.content)
+                        yield streamed_token.content
 
-                # extract tool calls, if any
-                if streamed_token.tool_calls and use_tools:
-                    # take the streamed tool call bits and mesh them together into a completed tool call array
-                    for tool_call in streamed_token.tool_calls:
-                        index = tool_call.index
+                    # extract tool calls, if any
+                    if streamed_token.tool_calls and use_tools:
+                        # take the streamed tool call bits and mesh them together into a completed tool call array
+                        for tool_call in streamed_token.tool_calls:
+                            index = tool_call.index
 
-                        if index not in tool_call_buffer:
-                            tool_call_buffer[index] = tool_call
+                            if index not in tool_call_buffer:
+                                tool_call_buffer[index] = tool_call
 
-                        tool_call_buffer[index].function.arguments += tool_call.function.arguments
+                            tool_call_buffer[index].function.arguments += tool_call.function.arguments
+
+                # if response has usage data, save it so we can use it to trim context!
+                if hasattr(chunk, 'usage') and chunk.usage is not None:
+                    token_usage = chunk.usage.prompt_tokens
 
             if use_tools:
                 for index, tool_call in tool_call_buffer.items():
@@ -255,10 +322,14 @@ class APIClient():
                     except Exception as e:
                         core.log_error(f"error while handling tool calls", e)
 
+            if token_usage is None:
+                # fall back to tokenizer for context length counting
+                token_usage = self._count_tokens_local(context)
+
             # add it to context
             if add_turn:
                 final_content = "".join(tokens)
-                await self.insert_turn("assistant", final_content)
+                await self.insert_turn("assistant", final_content, num_tokens=token_usage)
         except Exception as e:
             core.log_error("error while receiving response from AI", e)
             if self.manager.channel:

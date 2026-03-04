@@ -4,7 +4,7 @@ import core
 import modules
 import channels
 
-config = core.storage.StorageDict("config", "yaml")
+config = core.storage.StorageDict("config", "yaml", data_dir="config")
 
 default_config = {
     "api_url": "http://localhost:11434/v1",

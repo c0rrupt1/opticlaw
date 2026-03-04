@@ -33,6 +33,9 @@ class Manager:
 
         # Retrieve specific model details
         #model_info = self.API._AI.models.retrieve(model_id)
+        # models = self.API._AI.models.list()
+        # for model in models.data:
+        #     print(model)
 
         return self.API
 
@@ -64,7 +67,7 @@ class Manager:
         if not self.channel:
             # attempt to restore last used channel from save data
             last_channel = self.savedata.get("last_channel")
-            if last_channel:
+            if last_channel and last_channel in self.channels.keys():
                 self.channel = self.channels[last_channel]
 
         # load modules
@@ -422,7 +425,7 @@ class Manager:
 
         try:
             return await self.API._recv(
-                self.API._request(prompt, tools=self.tools),
+                await self.API._request(prompt, tools=self.tools),
                 use_tools=True,
                 add_turn=False
             )

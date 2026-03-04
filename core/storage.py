@@ -4,16 +4,21 @@ import json
 import yaml
 import msgpack
 
-DATADIR = "data"
-if not os.path.exists(DATADIR):
-    os.mkdir(DATADIR)
-
 class StorageList(list):
     """subclassed list that handles storage of data. supports a variety of storage formats."""
-    def __init__(self, file_path, type: str, manager=None, *args):
+    def __init__(self, file_path, type: str, manager=None, data_dir=None, *args):
         super().__init__(*args)
 
-        self.path = core.get_path(os.path.join(DATADIR, file_path))
+        if not data_dir:
+            data_dir = "data"
+
+        # ensure it's relative to the opticlaw root directory
+        data_dir = core.get_path(data_dir)
+
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+
+        self.path = core.get_path(os.path.join(data_dir, file_path))
         self.name = os.path.basename(self.path)
         self.binary = False
 
@@ -107,11 +112,19 @@ class StorageList(list):
 
 class StorageDict(dict):
     """subclassed dict that handles storage of data. supports a variety of storage formats."""
-    def __init__(self, file_path, type: str, manager=None, *args):
+    def __init__(self, file_path, type: str, manager=None, data_dir=None, *args):
         super().__init__(*args)
 
-        self.path = core.get_path(os.path.join(DATADIR, file_path))
-        self.name = os.path.basename(self.path)
+        if not data_dir:
+            data_dir = "data"
+
+        # ensure it's relative to the opticlaw root directory
+        data_dir = core.get_path(data_dir)
+
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+
+        self.path = core.get_path(os.path.join(data_dir, file_path))
         self.binary = False
 
         # lets not overwrite a builtin

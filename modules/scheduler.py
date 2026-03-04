@@ -87,6 +87,20 @@ class Scheduler(core.module.Module):
                     candidate = self._advance_to_next_weekday(candidate, interval_days)
                 else:
                     candidate += datetime.timedelta(days=interval_days)
+            elif recur.get("weekdays_only"):
+                # NEW: Even if candidate is in future, check if we need to advance to target weekday
+                # Calculate what the target weekday should be based on the interval
+                # For example: if today is Wednesday (2) and interval is 7 days, target is also Wednesday
+                # But if the job was originally scheduled for Saturday, we need to find the next Saturday
+                target_weekday = (now.weekday() + interval_days) % 7
+                
+                # If current candidate weekday doesn't match target, advance to it
+                if candidate.weekday() != target_weekday:
+                    # Find the next occurrence of the target weekday
+                    days_until_target = (target_weekday - candidate.weekday()) % 7
+                    if days_until_target == 0:
+                        days_until_target = 7  # If it's the target day but time has passed, go to next week
+                    candidate += datetime.timedelta(days=days_until_target)
 
             return candidate
 

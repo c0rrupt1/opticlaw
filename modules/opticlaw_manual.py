@@ -1,6 +1,7 @@
 import core
 
 class OpticlawManual(core.module.Module):
+    # NOTE TO SELF: replace with more generalized Documentation toolset for AI to use, bundle openclaw docs with the app
     async def on_system_prompt(self):
         return f"""
     You are running inside OptiClaw, an AI agent framework that lets you act autonomously.
