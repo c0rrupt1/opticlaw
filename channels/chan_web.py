@@ -52,8 +52,7 @@ stream_cancellations = set()
 
 @app.after_request
 def add_security_headers(response):
-    """Add security headers to all responses."""
-    # Content Security Policy - allow inline scripts/styles and CDN resources
+    """Add security and cache-control headers to all responses."""
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
@@ -67,6 +66,14 @@ def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
+
+    # Prevent caching of the main page and service worker
+    # This forces the browser to always check for updates
+    if request.path == '/' or request.path == '/sw.js':
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
     return response
 
 # ==============================================================================
@@ -3752,25 +3759,77 @@ def manifest():
 
 @app.route('/sw.js')
 def service_worker():
-    """Serve the service worker for offline support."""
-    return '''
-const CACHE_NAME = 'ai-chat-v1';
-const urlsToCache = ['/', '/manifest.json'];
+    sw_code = """
+const CACHE_VERSION = '2.0.0';
+const CACHE_NAME = 'ai-chat-v-' + CACHE_VERSION;
 
-self.addEventListener('install', event => {
+// Only cache LOCAL resources that we control
+// DO NOT cache third-party CDNs - they have their own caching
+const LOCAL_ASSETS = [
+    '/',
+    '/manifest.json'
+];
+
+self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(LOCAL_ASSETS))
+            .then(() => self.skipWaiting())
     );
 });
 
-self.addEventListener('fetch', event => {
-    event.respondWith(
-        caches.match(event.request).then(response => {
-            return response || fetch(event.request);
-        })
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('Deleting old cache:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
     );
 });
-''', 200, {'Content-Type': 'application/javascript'}
+
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+
+    // Only intercept LOCAL requests (same origin)
+    // Let CDN requests pass through to the browser
+    if (url.origin !== location.origin) {
+        return; // Browser handles CDN requests normally
+    }
+
+    // For navigation requests (HTML), try network first
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
+                    return response;
+                })
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    // For other local requests, try cache first
+    event.respondWith(
+        caches.match(event.request)
+            .then((response) => response || fetch(event.request))
+    );
+});
+"""
+    response = Response(sw_code, mimetype='application/javascript')
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/icon-192.png')
 @app.route('/icon-512.png')
