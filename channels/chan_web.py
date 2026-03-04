@@ -80,7 +80,7 @@ def add_security_headers(response):
 # HTML/CSS/JavaScript Template
 # ==============================================================================
 
-HTML_TEMPLATE = """
+HTML_TEMPLATE = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -157,7 +157,7 @@ HTML_TEMPLATE = """
 
         html, body {
             height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
                          Oxygen, Ubuntu, Cantarell, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
@@ -518,7 +518,7 @@ HTML_TEMPLATE = """
             padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
             background: var(--bg-primary);
         }
 
@@ -529,18 +529,46 @@ HTML_TEMPLATE = """
             border: 2px dashed var(--accent);
         }
 
+        /* Message wrapper - groups message bubble with actions */
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            animation: slideIn 0.2s ease-out;
+        }
+
+        .message-wrapper.hidden {
+            display: none;
+        }
+
+        .message-wrapper.user {
+            align-items: flex-end;
+        }
+
+        .message-wrapper.ai {
+            align-items: flex-start;
+        }
+
+        .message-wrapper.announce {
+            align-items: center;
+        }
+
+        .message-wrapper.command {
+            align-items: flex-start;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .message {
             max-width: 85%;
             padding: 12px 16px;
             border-radius: var(--radius-xl);
             line-height: 1.6;
             word-wrap: break-word;
-            animation: slideIn 0.2s ease-out;
             position: relative;
-        }
-
-        .message.hidden {
-            display: none;
         }
 
         .message.search-highlight {
@@ -554,51 +582,8 @@ HTML_TEMPLATE = """
             border-radius: 2px;
         }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Message actions */
-        .message-actions {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            gap: 4px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .message:hover .message-actions {
-            opacity: 1;
-        }
-
-        .message-action-btn {
-            padding: 4px 8px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .message-action-btn:hover {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border-color: var(--accent);
-        }
-
-        .message-action-btn.delete:hover {
-            border-color: var(--error);
-            color: var(--error);
-        }
-
         /* User messages */
         .message.user {
-            align-self: flex-end;
             background: var(--bg-message-user);
             border: 1px solid var(--border-user);
             border-bottom-right-radius: var(--radius-sm);
@@ -606,7 +591,6 @@ HTML_TEMPLATE = """
 
         /* AI messages */
         .message.ai {
-            align-self: flex-start;
             background: var(--bg-message-ai);
             border: 1px solid var(--border-message);
             border-bottom-left-radius: var(--radius-sm);
@@ -614,7 +598,6 @@ HTML_TEMPLATE = """
 
         /* System announcements */
         .message.announce {
-            align-self: center;
             background: var(--bg-message-announce);
             border: 1px solid var(--border-color);
             color: var(--text-secondary);
@@ -649,13 +632,55 @@ HTML_TEMPLATE = """
 
         /* Command messages */
         .message.command {
-            align-self: flex-start;
             background: var(--bg-message-command);
             border: 1px solid #2a4a2a;
             font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
             font-size: 0.9rem;
             border-bottom-left-radius: var(--radius-sm);
             max-width: 85%;
+        }
+
+        /* Message actions - now below the bubble */
+        .message-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message-wrapper:hover .message-actions {
+            opacity: 1;
+        }
+
+        .message-action-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message-action-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .message-action-btn.delete:hover {
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        .message-action-btn svg {
+            width: 16px;
+            height: 16px;
         }
 
         /* Timestamp */
@@ -720,9 +745,9 @@ HTML_TEMPLATE = """
         }
 
         .message pre:hover .copy-btn { opacity: 1; }
-        .copy-btn:hover { 
-            background: var(--bg-secondary); 
-            color: var(--text-primary); 
+        .copy-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
         }
         .copy-btn.copied {
             color: var(--accent);
@@ -884,13 +909,13 @@ HTML_TEMPLATE = """
             border-color: var(--accent);
         }
 
-        #upload svg { 
-            width: 20px; 
-            height: 20px; 
+        #upload svg {
+            width: 20px;
+            height: 20px;
         }
 
-        #file-input { 
-            display: none; 
+        #file-input {
+            display: none;
         }
 
         #message {
@@ -916,13 +941,13 @@ HTML_TEMPLATE = """
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
-        #message::placeholder { 
-            color: var(--text-muted); 
+        #message::placeholder {
+            color: var(--text-muted);
         }
 
-        #message:disabled { 
-            opacity: 0.5; 
-            cursor: not-allowed; 
+        #message:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         #send, #stop {
@@ -969,12 +994,12 @@ HTML_TEMPLATE = """
         /* Scrollbar styling */
         .chat-container::-webkit-scrollbar { width: 6px; }
         .chat-container::-webkit-scrollbar-track { background: var(--bg-primary); }
-        .chat-container::-webkit-scrollbar-thumb { 
-            background: var(--scrollbar); 
-            border-radius: 3px; 
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--scrollbar);
+            border-radius: 3px;
         }
-        .chat-container::-webkit-scrollbar-thumb:hover { 
-            background: var(--scrollbar-hover); 
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-hover);
         }
 
         /* ==========================================================================
@@ -1064,7 +1089,7 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <a href="#message" class="skip-link">Skip to input</a>
-    
+
     <div class="drop-overlay" id="drop-overlay" aria-hidden="true">
         <div class="drop-overlay-content">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1247,16 +1272,27 @@ HTML_TEMPLATE = """
 
     <script>
     // =============================================================================
+    // Icon Templates for Action Buttons
+    // =============================================================================
+
+    const ICONS = {
+        copy: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+        edit: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+        trash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+        check: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+    };
+
+    // =============================================================================
     // State Management
     // =============================================================================
-    
+
     // Connection state
     let isConnected = false;
     let reconnectAttempts = 0;
     let reconnectTimer = null;
     let hasShownReconnecting = false;
     let reconnectingMsgEl = null;
-    
+
     // Message state
     let lastAnnouncementId = 0;
     let isStreaming = false;
@@ -1265,12 +1301,12 @@ HTML_TEMPLATE = """
     let currentStreamId = null;
     let conversationHistory = [];
     let editingIndex = null;
-    
+
     // Search state
     let searchQuery = '';
     let searchResults = [];
     let currentSearchIndex = -1;
-    
+
     // DOM references
     const chat = document.getElementById('chat');
     const typing = document.getElementById('typing');
@@ -1279,11 +1315,11 @@ HTML_TEMPLATE = """
     const stopBtn = document.getElementById('stop');
     const statusDot = document.getElementById('status');
     const dropOverlay = document.getElementById('drop-overlay');
-    
+
     // =============================================================================
     // Configuration
     // =============================================================================
-    
+
     const CONFIG = {
         RECONNECT_BASE_DELAY: 1000,
         RECONNECT_MAX_DELAY: 30000,
@@ -1294,50 +1330,50 @@ HTML_TEMPLATE = """
         VIRTUAL_SCROLL_BUFFER: 10,
         MESSAGE_HEIGHT_ESTIMATE: 100
     };
-    
+
     // =============================================================================
     // Virtual Scrolling
     // =============================================================================
-    
+
     const VirtualScroller = {
         visibleStart: 0,
         visibleEnd: 20,
-        
+
         updateRange() {
             const scrollTop = chat.scrollTop;
             const viewportHeight = chat.clientHeight;
-            
+
             this.visibleStart = Math.max(0, Math.floor(scrollTop / CONFIG.MESSAGE_HEIGHT_ESTIMATE) - CONFIG.VIRTUAL_SCROLL_BUFFER);
             this.visibleEnd = Math.min(
                 conversationHistory.length,
                 Math.ceil((scrollTop + viewportHeight) / CONFIG.MESSAGE_HEIGHT_ESTIMATE) + CONFIG.VIRTUAL_SCROLL_BUFFER
             );
         },
-        
+
         isMessageVisible(index) {
             return index >= this.visibleStart && index <= this.visibleEnd;
         }
     };
-    
+
     // =============================================================================
     // Markdown Rendering
     // =============================================================================
-    
+
     marked.setOptions({
         breaks: true,
         gfm: true
     });
-    
+
     function renderMarkdown(text) {
         return marked.parse(text);
     }
-    
+
     function highlightCode(element) {
         if (typeof hljs === 'undefined') return;
-        
+
         element.querySelectorAll('pre code').forEach((block) => {
             hljs.highlightElement(block);
-            
+
             const pre = block.parentElement;
             if (!pre.querySelector('.copy-btn')) {
                 const btn = document.createElement('button');
@@ -1359,15 +1395,15 @@ HTML_TEMPLATE = """
             }
         });
     }
-    
+
     // =============================================================================
     // History Management
     // =============================================================================
-    
+
     function saveHistory() {
         localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
     }
-    
+
     function loadHistory() {
         const saved = localStorage.getItem('chatHistory');
         if (saved) {
@@ -1382,32 +1418,32 @@ HTML_TEMPLATE = """
             }
         }
     }
-    
+
     function clearChatUI() {
         conversationHistory = [];
         saveHistory();
-        const messages = chat.querySelectorAll('.message');
-        messages.forEach(msg => msg.remove());
+        const wrappers = chat.querySelectorAll('.message-wrapper');
+        wrappers.forEach(wrapper => wrapper.remove());
         currentAiMsg = null;
         editingIndex = null;
         clearSearch();
     }
-    
+
     // =============================================================================
     // Utility Functions
     // =============================================================================
-    
+
     function formatTime(date) {
         if (date) return date;
         return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    
+
     function scrollToBottom() {
         requestAnimationFrame(() => {
             chat.scrollTop = chat.scrollHeight;
         });
     }
-    
+
     function scrollToBottomDelayed() {
         setTimeout(() => {
             requestAnimationFrame(() => {
@@ -1415,7 +1451,7 @@ HTML_TEMPLATE = """
             });
         }, 10);
     }
-    
+
     function autoResize(textarea) {
         if (!textarea.value) {
             textarea.style.height = '48px';
@@ -1424,20 +1460,20 @@ HTML_TEMPLATE = """
             textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
         }
     }
-    
+
     function clearInput() {
         inputField.value = '';
         autoResize(inputField);
     }
-    
+
     // =============================================================================
     // Connection Management
     // =============================================================================
-    
+
     function updateConnectionStatus(status) {
         statusDot.className = 'status-dot ' + status;
         statusDot.setAttribute('aria-label', 'Connection status: ' + status);
-        
+
         if (status === 'disconnected') {
             sendBtn.disabled = true;
         } else if (status === 'connected') {
@@ -1445,7 +1481,7 @@ HTML_TEMPLATE = """
             reconnectAttempts = 0;
         }
     }
-    
+
     function removeReconnectingMessage() {
         if (reconnectingMsgEl) {
             reconnectingMsgEl.remove();
@@ -1453,22 +1489,22 @@ HTML_TEMPLATE = """
         }
         hasShownReconnecting = false;
     }
-    
+
     async function checkConnection() {
         try {
             const response = await fetch('/poll?id=' + lastAnnouncementId, {
                 method: 'GET',
                 signal: AbortSignal.timeout(CONFIG.CONNECTION_TIMEOUT)
             });
-            
+
             if (response.ok) {
                 const wasReconnecting = hasShownReconnecting && !isConnected;
-                
+
                 if (!isConnected) {
                     isConnected = true;
                     updateConnectionStatus('connected');
                     removeReconnectingMessage();
-                    
+
                     if (wasReconnecting || reconnectAttempts > 0) {
                         addAnnouncement('Reconnected to server', 'info');
                     }
@@ -1480,31 +1516,31 @@ HTML_TEMPLATE = """
             handleConnectionError();
         }
     }
-    
+
     function handleConnectionError() {
         const wasConnected = isConnected;
-        
+
         if (isConnected) {
             isConnected = false;
             updateConnectionStatus('disconnected');
             removeReconnectingMessage();
             addAnnouncement('Disconnected from server. Reconnecting...', 'info');
         }
-        
+
         scheduleReconnect();
     }
-    
+
     function scheduleReconnect() {
         if (reconnectTimer) clearTimeout(reconnectTimer);
-        
+
         reconnectAttempts++;
         const delay = Math.min(
             CONFIG.RECONNECT_BASE_DELAY * Math.pow(CONFIG.RECONNECT_DELAY_FACTOR, Math.min(reconnectAttempts, 10)),
             CONFIG.RECONNECT_MAX_DELAY
         );
-        
+
         updateConnectionStatus('connecting');
-        
+
         if (!hasShownReconnecting) {
             hasShownReconnecting = true;
             reconnectingMsgEl = addAnnouncement('Reconnecting...', 'info');
@@ -1512,7 +1548,7 @@ HTML_TEMPLATE = """
                 reconnectingMsgEl.classList.add('reconnecting');
             }
         }
-        
+
         reconnectTimer = setTimeout(async () => {
             await checkConnection();
             if (!isConnected) {
@@ -1520,88 +1556,117 @@ HTML_TEMPLATE = """
             }
         }, delay);
     }
-    
+
+    // =============================================================================
+    // Message Action Buttons Helper
+    // =============================================================================
+
+    function createActionButtons(role, index, content) {
+        const actions = document.createElement('div');
+        actions.className = 'message-actions';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'message-action-btn';
+        copyBtn.innerHTML = ICONS.copy;
+        copyBtn.setAttribute('aria-label', 'Copy message');
+        copyBtn.setAttribute('title', 'Copy');
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(content).then(() => {
+                copyBtn.innerHTML = ICONS.check;
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.innerHTML = ICONS.copy;
+                    copyBtn.classList.remove('copied');
+                }, 1500);
+            });
+        };
+        actions.appendChild(copyBtn);
+
+        if (role === 'user') {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'message-action-btn';
+            editBtn.innerHTML = ICONS.edit;
+            editBtn.setAttribute('aria-label', 'Edit message');
+            editBtn.setAttribute('title', 'Edit');
+            editBtn.onclick = () => editMessage(index);
+            actions.appendChild(editBtn);
+        }
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'message-action-btn delete';
+        deleteBtn.innerHTML = ICONS.trash;
+        deleteBtn.setAttribute('aria-label', 'Delete message and all following');
+        deleteBtn.setAttribute('title', 'Delete');
+        deleteBtn.onclick = () => deleteMessage(index);
+        actions.appendChild(deleteBtn);
+
+        return actions;
+    }
+
     // =============================================================================
     // Message Creation
     // =============================================================================
-    
+
     function createMessageElement(role, content, timestamp, edited = false, index = null) {
-        const div = document.createElement('div');
-        div.className = 'message ' + role;
-        div.setAttribute('role', 'article');
-        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper ' + role;
+        wrapper.setAttribute('role', 'article');
+
         if (index !== null) {
-            div.dataset.index = index;
+            wrapper.dataset.index = index;
         }
-        
+
         const timeStr = timestamp || formatTime();
-        
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message ' + role;
+
         if (role === 'ai' || role === 'user') {
-            div.innerHTML = renderMarkdown(content);
-            highlightCode(div);
+            msgDiv.innerHTML = renderMarkdown(content);
+            highlightCode(msgDiv);
         } else {
-            div.innerText = content;
+            msgDiv.innerText = content;
         }
-        
+
         const ts = document.createElement('span');
         ts.className = 'timestamp';
+
+        if (role === 'user') {
+            ts.classList.add('timestamp-right');
+        } else if (role === 'ai') {
+            ts.classList.add('timestamp-left');
+        } else {
+            ts.classList.add('timestamp-center');
+        }
+
         ts.textContent = timeStr;
-        
+
         if (edited) {
             const editIndicator = document.createElement('span');
             editIndicator.className = 'edit-indicator';
             editIndicator.textContent = '(edited)';
             ts.appendChild(editIndicator);
         }
-        
-        div.appendChild(ts);
-        
-        // Add action buttons for user and AI messages
+
+        msgDiv.appendChild(ts);
+        wrapper.appendChild(msgDiv);
+
+        // Add action buttons below message bubble (not inside)
         if (role === 'user' || role === 'ai') {
-            const actions = document.createElement('div');
-            actions.className = 'message-actions';
-            
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'message-action-btn';
-            copyBtn.textContent = 'Copy';
-            copyBtn.setAttribute('aria-label', 'Copy message');
-            copyBtn.onclick = () => {
-                navigator.clipboard.writeText(content).then(() => {
-                    copyBtn.textContent = 'Copied!';
-                    setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-                });
-            };
-            actions.appendChild(copyBtn);
-            
-            if (role === 'user') {
-                const editBtn = document.createElement('button');
-                editBtn.className = 'message-action-btn';
-                editBtn.textContent = 'Edit';
-                editBtn.setAttribute('aria-label', 'Edit message');
-                editBtn.onclick = () => editMessage(index);
-                actions.appendChild(editBtn);
-            }
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'message-action-btn delete';
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.setAttribute('aria-label', 'Delete message and all following');
-            deleteBtn.onclick = () => deleteMessage(index);
-            actions.appendChild(deleteBtn);
-            
-            div.appendChild(actions);
+            const actions = createActionButtons(role, index, content);
+            wrapper.appendChild(actions);
         }
-        
-        chat.insertBefore(div, typing);
+
+        chat.insertBefore(wrapper, typing);
         scrollToBottomDelayed();
-        return div;
+        return wrapper;
     }
-    
+
     function addMessage(role, content, withTimestamp = true, timestamp = null) {
         const timeStr = timestamp || formatTime();
         const msg = { role: role, content: content, timestamp: timeStr };
         const index = conversationHistory.length;
-        
+
         if (isStreaming && currentAiMsg && role === 'announce') {
             conversationHistory.push(msg);
             saveHistory();
@@ -1615,413 +1680,413 @@ HTML_TEMPLATE = """
         }
         scrollToBottom();
     }
-    
+
     function addAnnouncement(content, type = null) {
-        const div = document.createElement('div');
-        div.className = 'message announce';
-        if (type) div.classList.add(type);
-        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper announce';
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message announce';
+        if (type) msgDiv.classList.add(type);
+
         const timeStr = formatTime();
-        div.innerHTML = content + '<span class="timestamp">' + timeStr + '</span>';
-        
+        msgDiv.innerHTML = content + '<span class="timestamp timestamp-center">' + timeStr + '</span>';
+        wrapper.appendChild(msgDiv);
+
         if (isStreaming && currentAiMsg) {
-            chat.insertBefore(div, currentAiMsg);
+            chat.insertBefore(wrapper, currentAiMsg);
         } else {
-            chat.insertBefore(div, typing);
+            chat.insertBefore(wrapper, typing);
         }
         scrollToBottom();
-        return div;
-    }
-    
-// =============================================================================
-// Message Editing & Deletion - Map frontend indices to backend indices
-// =============================================================================
-
-/**
- * Map a frontend conversationHistory index to a backend _turns index.
- * Returns -1 if the message doesn't exist in the backend (announcement, command, etc.)
- * 
- * KEY INSIGHT: The backend uses 'assistant' for AI messages, but the frontend uses 'ai'.
- * Also, commands (/help, /new, etc.) and announcements are never added to _turns.
- * 
- * _turns is populated ONLY by:
- *   - insert_turn("user", content) for user messages (not commands)
- *   - insert_turn("assistant", content) for AI responses (including stopped ones)
- * 
- * _turns is NOT populated by:
- *   - Commands (caught by Channel._process_input() which returns early)
- *   - Command responses (returned by _process_input, never goes through API)
- *   - Announcements (from manager.channel.announce(), never goes through API)
- */
-function frontendToBackendIndex(frontendIndex) {
-    let backendIndex = 0;
-
-    for (let i = 0; i < conversationHistory.length; i++) {
-        const msg = conversationHistory[i];
-        const content = msg.content || '';
-
-        // User messages that aren't commands go to the AI
-        if (msg.role === 'user' && !content.startsWith('/')) {
-            if (i === frontendIndex) return backendIndex;
-            backendIndex++;
-        }
-        // AI messages go to the AI (frontend uses 'ai', backend uses 'assistant')
-        // Stopped/cancelled messages are also added to _turns
-        else if (msg.role === 'ai' || msg.role === 'assistant') {
-            if (i === frontendIndex) return backendIndex;
-            backendIndex++;
-        }
-        // Everything else doesn't go to the AI:
-        // - Commands (role='user' but content starts with '/')
-        // - Command responses (role='command')
-        // - Announcements (role='announce')
-        // - Upload notifications (role='announce')
-        // Don't increment backendIndex for these
+        return wrapper;
     }
 
-    return -1;
-}
+    // =============================================================================
+    // Message Editing & Deletion - Map frontend indices to backend indices
+    // =============================================================================
 
-/**
- * Get the last backend index for a given frontend index.
- * When deleting from frontend index N, we need to know how many backend
- * messages exist after that point to delete correctly.
- */
-function getBackendIndexRangeFromFrontend(frontendFromIndex, frontendToIndex) {
-    let startBackendIndex = -1;
-    let endBackendIndex = -1;
-    let backendIndex = 0;
+    /**
+     * Map a frontend conversationHistory index to a backend _turns index.
+     * Returns -1 if the message doesn't exist in the backend (announcement, command, etc.)
+     * 
+     * KEY INSIGHT: The backend uses 'assistant' for AI messages, but the frontend uses 'ai'.
+     * Also, commands (/help, /new, etc.) and announcements are never added to _turns.
+     * 
+     * _turns is populated ONLY by:
+     *   - insert_turn("user", content) for user messages (not commands)
+     *   - insert_turn("assistant", content) for AI responses (including stopped ones)
+     * 
+     * _turns is NOT populated by:
+     *   - Commands (caught by Channel._process_input() which returns early)
+     *   - Command responses (returned by _process_input, never goes through API)
+     *   - Announcements (from manager.channel.announce(), never goes through API)
+     */
+    function frontendToBackendIndex(frontendIndex) {
+        let backendIndex = 0;
 
-    for (let i = 0; i < conversationHistory.length; i++) {
-        const msg = conversationHistory[i];
-        const content = msg.content || '';
+        for (let i = 0; i < conversationHistory.length; i++) {
+            const msg = conversationHistory[i];
+            const content = msg.content || '';
 
-        let isBackendMessage = false;
-
-        if (msg.role === 'user' && !content.startsWith('/')) {
-            isBackendMessage = true;
-        } else if (msg.role === 'ai' || msg.role === 'assistant') {
-            isBackendMessage = true;
-        }
-
-        if (isBackendMessage) {
-            if (i === frontendFromIndex) {
-                startBackendIndex = backendIndex;
+            // User messages that aren't commands go to the AI
+            if (msg.role === 'user' && !content.startsWith('/')) {
+                if (i === frontendIndex) return backendIndex;
+                backendIndex++;
             }
-            if (i === frontendToIndex) {
-                endBackendIndex = backendIndex;
+            // AI messages go to the AI (frontend uses 'ai', backend uses 'assistant')
+            // Stopped/cancelled messages are also added to _turns
+            else if (msg.role === 'ai' || msg.role === 'assistant') {
+                if (i === frontendIndex) return backendIndex;
+                backendIndex++;
             }
-            backendIndex++;
+            // Everything else doesn't go to the AI:
+            // - Commands (role='user' but content starts with '/')
+            // - Command responses (role='command')
+            // - Announcements (role='announce')
+            // - Upload notifications (role='announce')
+            // Don't increment backendIndex for these
         }
+
+        return -1;
     }
 
-    return { start: startBackendIndex, end: endBackendIndex };
-}
+    /**
+     * Get the last backend index for a given frontend index.
+     * When deleting from frontend index N, we need to know how many backend
+     * messages exist after that point to delete correctly.
+     */
+    function getBackendIndexRangeFromFrontend(frontendFromIndex, frontendToIndex) {
+        let startBackendIndex = -1;
+        let endBackendIndex = -1;
+        let backendIndex = 0;
 
-/**
- * Delete from backend at the given index (removes index and everything after).
- */
-async function deleteFromBackendIndex(backendIndex) {
-    if (backendIndex < 0) return { success: false, reason: 'invalid_index' };
+        for (let i = 0; i < conversationHistory.length; i++) {
+            const msg = conversationHistory[i];
+            const content = msg.content || '';
 
-    try {
-        const response = await fetch('/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ index: backendIndex })
-        });
-        const data = await response.json();
-        console.log('Backend delete result:', data);
-        return data;
-    } catch (e) {
-        console.error('Failed to delete from backend:', e);
-        return { success: false, reason: 'network_error' };
+            let isBackendMessage = false;
+
+            if (msg.role === 'user' && !content.startsWith('/')) {
+                isBackendMessage = true;
+            } else if (msg.role === 'ai' || msg.role === 'assistant') {
+                isBackendMessage = true;
+            }
+
+            if (isBackendMessage) {
+                if (i === frontendFromIndex) {
+                    startBackendIndex = backendIndex;
+                }
+                if (i === frontendToIndex) {
+                    endBackendIndex = backendIndex;
+                }
+                backendIndex++;
+            }
+        }
+
+        return { start: startBackendIndex, end: endBackendIndex };
     }
-}
 
-/**
- * Edit a message in the backend at a specific index.
- */
-async function editAtBackendIndex(backendIndex, newContent) {
-    if (backendIndex < 0) return { success: false, reason: 'invalid_index' };
+    /**
+     * Delete from backend at the given index (removes index and everything after).
+     */
+    async function deleteFromBackendIndex(backendIndex) {
+        if (backendIndex < 0) return { success: false, reason: 'invalid_index' };
 
-    try {
-        const response = await fetch('/edit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ index: backendIndex, content: newContent })
-        });
-        const data = await response.json();
-        console.log('Backend edit result:', data);
-        return data;
-    } catch (e) {
-        console.error('Failed to edit in backend:', e);
-        return { success: false, reason: 'network_error' };
-    }
-}
-
-/**
- * Sync the entire conversation history with the backend.
- * This is a nuclear option - rebuilds _turns from scratch.
- * Use when indices get out of sync.
- */
-async function syncFullBackendContext() {
-    const messagesToSync = [];
-
-    for (const msg of conversationHistory) {
-        const content = msg.content || '';
-
-        // Only include messages that go to the AI
-        if (msg.role === 'user' && !content.startsWith('/')) {
-            messagesToSync.push({
-                role: 'user',
-                content: content
+        try {
+            const response = await fetch('/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: backendIndex })
             });
-        } else if (msg.role === 'ai' || msg.role === 'assistant') {
-            // Clean up stopped/cancelled markers for backend
-            let cleanContent = content;
-            if (cleanContent.endsWith(' [Stopped]')) {
-                cleanContent = cleanContent.slice(0, -10);
-            } else if (cleanContent.endsWith(' [Cancelled]')) {
-                cleanContent = cleanContent.slice(0, -12);
-            } else if (cleanContent === '[Stopped]' || cleanContent === '[Cancelled]') {
-                cleanContent = '';
-            }
-            if (cleanContent) {
+            const data = await response.json();
+            console.log('Backend delete result:', data);
+            return data;
+        } catch (e) {
+            console.error('Failed to delete from backend:', e);
+            return { success: false, reason: 'network_error' };
+        }
+    }
+
+    /**
+     * Edit a message in the backend at a specific index.
+     */
+    async function editAtBackendIndex(backendIndex, newContent) {
+        if (backendIndex < 0) return { success: false, reason: 'invalid_index' };
+
+        try {
+            const response = await fetch('/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: backendIndex, content: newContent })
+            });
+            const data = await response.json();
+            console.log('Backend edit result:', data);
+            return data;
+        } catch (e) {
+            console.error('Failed to edit in backend:', e);
+            return { success: false, reason: 'network_error' };
+        }
+    }
+
+    /**
+     * Sync the entire conversation history with the backend.
+     * This is a nuclear option - rebuilds _turns from scratch.
+     * Use when indices get out of sync.
+     */
+    async function syncFullBackendContext() {
+        const messagesToSync = [];
+
+        for (const msg of conversationHistory) {
+            const content = msg.content || '';
+
+            // Only include messages that go to the AI
+            if (msg.role === 'user' && !content.startsWith('/')) {
                 messagesToSync.push({
-                    role: 'assistant',
-                    content: cleanContent
+                    role: 'user',
+                    content: content
                 });
+            } else if (msg.role === 'ai' || msg.role === 'assistant') {
+                // Clean up stopped/cancelled markers for backend
+                let cleanContent = content;
+                if (cleanContent.endsWith(' [Stopped]')) {
+                    cleanContent = cleanContent.slice(0, -10);
+                } else if (cleanContent.endsWith(' [Cancelled]')) {
+                    cleanContent = cleanContent.slice(0, -12);
+                } else if (cleanContent === '[Stopped]' || cleanContent === '[Cancelled]') {
+                    cleanContent = '';
+                }
+                if (cleanContent) {
+                    messagesToSync.push({
+                        role: 'assistant',
+                        content: cleanContent
+                    });
+                }
             }
+            // Skip commands, announcements, etc.
         }
-        // Skip commands, announcements, etc.
-    }
 
-    console.log('Syncing', messagesToSync.length, 'messages to backend');
+        console.log('Syncing', messagesToSync.length, 'messages to backend');
 
-    try {
-        const response = await fetch('/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: messagesToSync })
-        });
-        const data = await response.json();
-        console.log('Sync result:', data);
-        return data.success;
-    } catch (e) {
-        console.error('Failed to sync backend:', e);
-        return false;
-    }
-}
-
-function editMessage(index) {
-    if (editingIndex !== null) {
-        cancelEdit();
-    }
-
-    const msg = conversationHistory[index];
-    if (!msg) return;
-
-    // Can only edit user messages (not commands)
-    if (msg.role !== 'user') {
-        addAnnouncement('Can only edit your own messages', 'error');
-        return;
-    }
-
-    if ((msg.content || '').startsWith('/')) {
-        addAnnouncement('Cannot edit command messages', 'error');
-        return;
-    }
-
-    editingIndex = index;
-
-    const messageEl = chat.querySelector('[data-index="' + index + '"]');
-    if (!messageEl) return;
-
-    const originalContent = msg.content || '';
-
-    const editContainer = document.createElement('div');
-    editContainer.className = 'edit-container';
-
-    const textarea = document.createElement('textarea');
-    textarea.className = 'edit-textarea';
-    textarea.value = originalContent;
-    textarea.setAttribute('aria-label', 'Edit message');
-
-    const actions = document.createElement('div');
-    actions.className = 'edit-actions';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'edit-save';
-    saveBtn.textContent = 'Save';
-    saveBtn.onclick = () => saveEdit(index, textarea.value);
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'edit-cancel';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = cancelEdit;
-
-    actions.appendChild(cancelBtn);
-    actions.appendChild(saveBtn);
-
-    editContainer.appendChild(textarea);
-    editContainer.appendChild(actions);
-
-    messageEl.innerHTML = '';
-    messageEl.appendChild(editContainer);
-
-    textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-    textarea.onkeydown = (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            saveEdit(index, textarea.value);
+        try {
+            const response = await fetch('/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: messagesToSync })
+            });
+            const data = await response.json();
+            console.log('Sync result:', data);
+            return data.success;
+        } catch (e) {
+            console.error('Failed to sync backend:', e);
+            return false;
         }
-        if (e.key === 'Escape') {
+    }
+
+    function editMessage(index) {
+        if (editingIndex !== null) {
             cancelEdit();
         }
-    };
-}
 
-async function saveEdit(index, newContent) {
-    newContent = (newContent || '').trim();
-    if (!newContent) {
-        cancelEdit();
-        return;
-    }
+        const msg = conversationHistory[index];
+        if (!msg) return;
 
-    const msg = conversationHistory[index];
-    if (!msg) {
-        cancelEdit();
-        return;
-    }
-
-    // Update local history
-    conversationHistory[index].content = newContent;
-    conversationHistory[index].edited = true;
-    saveHistory();
-
-    // Find corresponding backend index and update there too
-    const backendIndex = frontendToBackendIndex(index);
-    console.log('Editing frontend index', index, '-> backend index', backendIndex, 'content:', newContent.substring(0, 50));
-
-    if (backendIndex >= 0) {
-        const result = await editAtBackendIndex(backendIndex, newContent);
-        if (!result.success) {
-            console.error('Backend edit failed, attempting full sync');
-            await syncFullBackendContext();
+        // Can only edit user messages (not commands)
+        if (msg.role !== 'user') {
+            addAnnouncement('Can only edit your own messages', 'error');
+            return;
         }
+
+        if ((msg.content || '').startsWith('/')) {
+            addAnnouncement('Cannot edit command messages', 'error');
+            return;
+        }
+
+        editingIndex = index;
+
+        const messageEl = chat.querySelector('[data-index="' + index + '"]');
+        if (!messageEl) return;
+
+        const originalContent = msg.content || '';
+
+        const editContainer = document.createElement('div');
+        editContainer.className = 'edit-container';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'edit-textarea';
+        textarea.value = originalContent;
+        textarea.setAttribute('aria-label', 'Edit message');
+
+        const actions = document.createElement('div');
+        actions.className = 'edit-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'edit-save';
+        saveBtn.textContent = 'Save';
+        saveBtn.onclick = () => saveEdit(index, textarea.value);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'edit-cancel';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = cancelEdit;
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(saveBtn);
+
+        editContainer.appendChild(textarea);
+        editContainer.appendChild(actions);
+
+        messageEl.innerHTML = '';
+        messageEl.appendChild(editContainer);
+
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+        textarea.onkeydown = (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                saveEdit(index, textarea.value);
+            }
+            if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        };
     }
 
-    editingIndex = null;
-    reRenderMessagesFrom(index);
-}
+    async function saveEdit(index, newContent) {
+        newContent = (newContent || '').trim();
+        if (!newContent) {
+            cancelEdit();
+            return;
+        }
 
-function cancelEdit() {
-    if (editingIndex === null) return;
+        const msg = conversationHistory[index];
+        if (!msg) {
+            cancelEdit();
+            return;
+        }
 
-    const index = editingIndex;
-    editingIndex = null;
+        // Update local history
+        conversationHistory[index].content = newContent;
+        conversationHistory[index].edited = true;
+        saveHistory();
 
-    reRenderMessagesFrom(index);
-}
+        // Find corresponding backend index and update there too
+        const backendIndex = frontendToBackendIndex(index);
+        console.log('Editing frontend index', index, '-> backend index', backendIndex, 'content:', newContent.substring(0, 50));
 
-async function deleteMessage(index) {
-    if (index === null || index === undefined) return;
+        if (backendIndex >= 0) {
+            const result = await editAtBackendIndex(backendIndex, newContent);
+            if (!result.success) {
+                console.error('Backend edit failed, attempting full sync');
+                await syncFullBackendContext();
+            }
+        }
 
-    const msg = conversationHistory[index];
-    if (!msg) return;
-
-    const backendIndex = frontendToBackendIndex(index);
-    console.log('Deleting frontend index', index, '-> backend index', backendIndex);
-    console.log('Message role:', msg.role, 'content:', (msg.content || '').substring(0, 50));
-
-    // Determine confirmation message based on message type
-    let confirmMsg = 'Delete this message?';
-    if (backendIndex >= 0) {
-        confirmMsg = "Delete this message and all messages after it? This will affect the AI's memory of the conversation.";
-    } else {
-        confirmMsg = 'Delete this message?';
+        editingIndex = null;
+        reRenderMessagesFrom(index);
     }
 
-    if (!confirm(confirmMsg)) return;
+    function cancelEdit() {
+        if (editingIndex === null) return;
 
-    // Store old state for debugging
-    const oldHistory = [...conversationHistory];
-    console.log('Before delete - Frontend history length:', conversationHistory.length);
+        const index = editingIndex;
+        editingIndex = null;
 
-    // Delete from frontend
-    if (backendIndex >= 0) {
-        // This message exists in backend - delete from this index onwards in both
+        reRenderMessagesFrom(index);
+    }
 
-        // Delete from frontend (from index onwards)
-        conversationHistory = conversationHistory.slice(0, index);
+    async function deleteMessage(index) {
+        if (index === null || index === undefined) return;
 
-        // Delete from backend at the corresponding index
-        const result = await deleteFromBackendIndex(backendIndex);
+        const msg = conversationHistory[index];
+        if (!msg) return;
 
-        if (!result.success) {
-            console.error('Backend delete failed, attempting full sync');
-            // Restore frontend state and do a full sync
-            conversationHistory = oldHistory;
-            await syncFullBackendContext();
-            // Now try the frontend delete again
+        const backendIndex = frontendToBackendIndex(index);
+        console.log('Deleting frontend index', index, '-> backend index', backendIndex);
+        console.log('Message role:', msg.role, 'content:', (msg.content || '').substring(0, 50));
+
+        // Determine confirmation message based on message type
+        let confirmMsg = 'Delete this message?';
+        if (backendIndex >= 0) {
+            confirmMsg = "Delete this message and all messages after it?\n\nThis will affect the AI's memory of the conversation.";
+        } else {
+            confirmMsg = 'Delete this message?';
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        // Store old state for debugging
+        const oldHistory = [...conversationHistory];
+        console.log('Before delete - Frontend history length:', conversationHistory.length);
+
+        // Delete from frontend
+        if (backendIndex >= 0) {
+            // This message exists in backend - delete from this index onwards in both
+
+            // Delete from frontend (from index onwards)
             conversationHistory = conversationHistory.slice(0, index);
+
+            // Delete from backend at the corresponding index
+            const result = await deleteFromBackendIndex(backendIndex);
+
+            if (!result.success) {
+                console.error('Backend delete failed, attempting full sync');
+                // Restore frontend state and do a full sync
+                conversationHistory = oldHistory;
+                await syncFullBackendContext();
+                // Now try the frontend delete again
+                conversationHistory = conversationHistory.slice(0, index);
+            }
+        } else {
+            // This message doesn't exist in backend (announcement, command, etc.)
+            // Just remove it from frontend
+            conversationHistory.splice(index, 1);
         }
-    } else {
-        // This message doesn't exist in backend (announcement, command, etc.)
-        // Just remove it from frontend
-        conversationHistory.splice(index, 1);
+
+        console.log('After delete - Frontend history length:', conversationHistory.length);
+
+        saveHistory();
+        reRenderAllMessages();
     }
-
-    console.log('After delete - Frontend history length:', conversationHistory.length);
-
-    saveHistory();
-    reRenderAllMessages();
-}
 
     function reRenderMessagesFrom(startIndex) {
-        const messages = chat.querySelectorAll('.message');
-        
-        // Remove messages from startIndex onwards
-        messages.forEach(msg => {
-            const idx = parseInt(msg.dataset.index);
-            if (idx >= startIndex) {
-                msg.remove();
+        const wrappers = chat.querySelectorAll('.message-wrapper');
+
+        wrappers.forEach(wrapper => {
+            const idx = parseInt(wrapper.dataset.index);
+            if (!isNaN(idx) && idx >= startIndex) {
+                wrapper.remove();
             }
         });
-        
-        // Re-render messages from startIndex
+
         for (let i = startIndex; i < conversationHistory.length; i++) {
             const msg = conversationHistory[i];
             createMessageElement(msg.role, msg.content, msg.timestamp, msg.edited, i);
         }
-        
+
         scrollToBottom();
     }
-    
+
     function reRenderAllMessages() {
-        // Remove all messages
-        const messages = chat.querySelectorAll('.message');
-        messages.forEach(msg => msg.remove());
-        
-        // Re-render all
+        const wrappers = chat.querySelectorAll('.message-wrapper');
+        wrappers.forEach(wrapper => wrapper.remove());
+
         conversationHistory.forEach((msg, index) => {
             createMessageElement(msg.role, msg.content, msg.timestamp, msg.edited, index);
         });
-        
+
         scrollToBottom();
     }
-    
+
     // =============================================================================
     // Search
     // =============================================================================
-    
+
     function toggleSearch() {
         const container = document.getElementById('search-container');
         const input = document.getElementById('search-input');
-        
+
         if (container.classList.contains('active')) {
             clearSearch();
         } else {
@@ -2029,156 +2094,43 @@ async function deleteMessage(index) {
             input.focus();
         }
     }
-    
+
     function clearSearch() {
         const container = document.getElementById('search-container');
         const input = document.getElementById('search-input');
         const count = document.getElementById('search-count');
-        
+
         container.classList.remove('active');
         input.value = '';
         count.textContent = '0 results';
         searchQuery = '';
         searchResults = [];
         currentSearchIndex = -1;
-        
-        // Remove highlights
-        document.querySelectorAll('.message').forEach(msg => {
-            msg.classList.remove('search-highlight');
-            // Restore original content by re-rendering
-            const index = parseInt(msg.dataset.index);
-            if (!isNaN(index) && conversationHistory[index]) {
-                const msgData = conversationHistory[index];
-                if (msgData.role === 'ai' || msgData.role === 'user') {
-                    msg.innerHTML = renderMarkdown(msgData.content);
-                    highlightCode(msg);
-                    
-                    // Re-add timestamp and actions
-                    const ts = document.createElement('span');
-                    ts.className = 'timestamp';
-                    ts.textContent = msgData.timestamp;
-                    if (msgData.edited) {
-                        const editIndicator = document.createElement('span');
-                        editIndicator.className = 'edit-indicator';
-                        editIndicator.textContent = '(edited)';
-                        ts.appendChild(editIndicator);
-                    }
-                    msg.appendChild(ts);
-                    
-                    // Re-add actions
-                    const actions = document.createElement('div');
-                    actions.className = 'message-actions';
-                    
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'message-action-btn';
-                    copyBtn.textContent = 'Copy';
-                    copyBtn.onclick = () => {
-                        navigator.clipboard.writeText(msgData.content).then(() => {
-                            copyBtn.textContent = 'Copied!';
-                            setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-                        });
-                    };
-                    actions.appendChild(copyBtn);
-                    
-                    if (msgData.role === 'user') {
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'message-action-btn';
-                        editBtn.textContent = 'Edit';
-                        editBtn.onclick = () => editMessage(index);
-                        actions.appendChild(editBtn);
-                    }
-                    
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'message-action-btn delete';
-                    deleteBtn.textContent = 'Delete';
-                    deleteBtn.onclick = () => deleteMessage(index);
-                    actions.appendChild(deleteBtn);
-                    
-                    msg.appendChild(actions);
-                }
-            }
-        });
+
+        // Re-render all messages to remove highlights
+        reRenderAllMessages();
     }
-    
+
     function performSearch(query) {
         searchQuery = query.toLowerCase();
         if (!searchQuery) {
             document.getElementById('search-count').textContent = '0 results';
             return;
         }
-        
+
         searchResults = [];
-        
+
         conversationHistory.forEach((msg, index) => {
             if (msg.content.toLowerCase().includes(searchQuery)) {
                 searchResults.push(index);
             }
         });
-        
+
         document.getElementById('search-count').textContent = searchResults.length + ' result' + (searchResults.length !== 1 ? 's' : '');
-        
-        // Highlight results
-        searchResults.forEach(index => {
-            const msgEl = chat.querySelector('[data-index="' + index + '"]');
-            if (msgEl && conversationHistory[index]) {
-                const msgData = conversationHistory[index];
-                
-                if (msgData.role === 'ai' || msgData.role === 'user') {
-                    // Escape the query for regex
-                    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-                    const regex = new RegExp('(' + escapedQuery + ')', 'gi');
-                    
-                    let highlightedContent = msgData.content.replace(regex, '<mark>$1</mark>');
-                    msgEl.innerHTML = renderMarkdown(highlightedContent);
-                    highlightCode(msgEl);
-                    
-                    msgEl.classList.add('search-highlight');
-                    
-                    // Re-add timestamp and actions
-                    const ts = document.createElement('span');
-                    ts.className = 'timestamp';
-                    ts.textContent = msgData.timestamp;
-                    if (msgData.edited) {
-                        const editIndicator = document.createElement('span');
-                        editIndicator.className = 'edit-indicator';
-                        editIndicator.textContent = '(edited)';
-                        ts.appendChild(editIndicator);
-                    }
-                    msgEl.appendChild(ts);
-                    
-                    const actions = document.createElement('div');
-                    actions.className = 'message-actions';
-                    
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'message-action-btn';
-                    copyBtn.textContent = 'Copy';
-                    copyBtn.onclick = () => {
-                        navigator.clipboard.writeText(msgData.content).then(() => {
-                            copyBtn.textContent = 'Copied!';
-                            setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-                        });
-                    };
-                    actions.appendChild(copyBtn);
-                    
-                    if (msgData.role === 'user') {
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'message-action-btn';
-                        editBtn.textContent = 'Edit';
-                        editBtn.onclick = () => editMessage(index);
-                        actions.appendChild(editBtn);
-                    }
-                    
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'message-action-btn delete';
-                    deleteBtn.textContent = 'Delete';
-                    deleteBtn.onclick = () => deleteMessage(index);
-                    actions.appendChild(deleteBtn);
-                    
-                    msgEl.appendChild(actions);
-                }
-            }
-        });
-        
+
+        // Re-render with highlights
+        reRenderSearchResults();
+
         // Scroll to first result
         if (searchResults.length > 0) {
             const firstResult = chat.querySelector('[data-index="' + searchResults[0] + '"]');
@@ -2187,52 +2139,112 @@ async function deleteMessage(index) {
             }
         }
     }
-    
+
+    function reRenderSearchResults() {
+        const wrappers = chat.querySelectorAll('.message-wrapper');
+        wrappers.forEach(wrapper => wrapper.remove());
+
+        conversationHistory.forEach((msg, index) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper ' + msg.role;
+            wrapper.dataset.index = index;
+            wrapper.setAttribute('role', 'article');
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + msg.role;
+
+            const timeStr = msg.timestamp || formatTime();
+
+            if (msg.role === 'ai' || msg.role === 'user') {
+                let content = msg.content;
+
+                // Apply search highlight if this is a search result
+                if (searchResults.includes(index) && searchQuery) {
+                    msgDiv.classList.add('search-highlight');
+                    const escapedQuery = searchQuery.replace("/[.*+?^${}()|[\]\\]/g", '\$&');
+                    const regex = new RegExp('(' + escapedQuery + ')', 'gi');
+                    content = content.replace(regex, '<mark>$1</mark>');
+                }
+
+                msgDiv.innerHTML = renderMarkdown(content);
+                highlightCode(msgDiv);
+            } else {
+                msgDiv.innerText = msg.content;
+            }
+
+            const ts = document.createElement('span');
+            ts.className = 'timestamp';
+            if (msg.role === 'user') ts.classList.add('timestamp-right');
+            else if (msg.role === 'ai') ts.classList.add('timestamp-left');
+            else ts.classList.add('timestamp-center');
+            ts.textContent = timeStr;
+
+            if (msg.edited) {
+                const editIndicator = document.createElement('span');
+                editIndicator.className = 'edit-indicator';
+                editIndicator.textContent = '(edited)';
+                ts.appendChild(editIndicator);
+            }
+
+            msgDiv.appendChild(ts);
+            wrapper.appendChild(msgDiv);
+
+            if (msg.role === 'user' || msg.role === 'ai') {
+                const actions = createActionButtons(msg.role, index, msg.content);
+                wrapper.appendChild(actions);
+            }
+
+            chat.insertBefore(wrapper, typing);
+        });
+
+        scrollToBottom();
+    }
+
     // =============================================================================
     // Export
     // =============================================================================
-    
+
     function showExportModal() {
         toggleModal('export');
     }
-    
+
     function exportChat(format) {
         let content, filename, mimeType;
-        
+
         if (format === 'json') {
             content = JSON.stringify(conversationHistory, null, 2);
             filename = 'chat-export.json';
             mimeType = 'application/json';
         } else if (format === 'markdown') {
-            let md = '# Chat Export\\n\\n';
-            md += 'Exported on ' + new Date().toLocaleString() + '\\n\\n---\\n\\n';
-            
+            let md = '# Chat Export\n\n';
+            md += 'Exported on ' + new Date().toLocaleString() + '\n\n---\n\n';
+
             conversationHistory.forEach(msg => {
                 const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
-                md += '**' + role + '** (' + msg.timestamp + '):\\n\\n';
-                md += msg.content + '\\n\\n---\\n\\n';
+                md += '**' + role + '** (' + msg.timestamp + '):\n\n';
+                md += msg.content + '\n\n---\n\n';
             });
-            
+
             content = md;
             filename = 'chat-export.md';
             mimeType = 'text/markdown';
         } else { // txt
             let txt = '';
-            txt += 'Chat Export\\n';
-            txt += 'Exported on ' + new Date().toLocaleString() + '\\n';
-            txt += '================================\\n\\n';
-            
+            txt += 'Chat Export\n';
+            txt += 'Exported on ' + new Date().toLocaleString() + '\n';
+            txt += '================================\n\n';
+
             conversationHistory.forEach(msg => {
                 const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
-                txt += '[' + msg.timestamp + '] ' + role + ':\\n';
-                txt += msg.content + '\\n\\n';
+                txt += '[' + msg.timestamp + '] ' + role + ':\n';
+                txt += msg.content + '\n\n';
             });
-            
+
             content = txt;
             filename = 'chat-export.txt';
             mimeType = 'text/plain';
         }
-        
+
         const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2242,54 +2254,54 @@ async function deleteMessage(index) {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         toggleModal('export');
     }
-    
+
     // =============================================================================
     // Modal Management
     // =============================================================================
-    
+
     function toggleModal(modalName) {
         const overlay = document.getElementById(modalName + '-overlay');
         const modal = document.getElementById(modalName + '-modal');
-        
+
         overlay.classList.toggle('show');
         modal.classList.toggle('show');
-        
+
         // Focus management for accessibility
         if (modal.classList.contains('show')) {
             modal.querySelector('button, input, [tabindex]:not([tabindex="-1"])')?.focus();
         }
     }
-    
+
     function closeModalOnOverlay(event, modalName) {
         if (event.target.id === modalName + '-overlay') {
             toggleModal(modalName);
         }
     }
-    
+
     function showShortcutsModal() {
         toggleModal('shortcuts');
     }
-    
+
     // =============================================================================
     // Input Handling
     // =============================================================================
-    
+
     function setInputState(disabled, showTyping = false, showStop = false) {
         inputField.disabled = false;
         sendBtn.disabled = disabled;
         statusDot.classList.toggle('inactive', disabled);
-        
+
         typing.classList.toggle('show', showTyping);
         sendBtn.classList.toggle('hidden', showStop);
         stopBtn.classList.toggle('show', showStop);
     }
-    
+
     function handleKeyDown(event) {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
+
         // Keyboard shortcuts
         if (event.ctrlKey || event.metaKey) {
             if (event.key === 'Enter') {
@@ -2322,7 +2334,7 @@ async function deleteMessage(index) {
                 return;
             }
         }
-        
+
         if (event.key === 'Escape') {
             if (isStreaming) {
                 stopGeneration();
@@ -2338,88 +2350,88 @@ async function deleteMessage(index) {
             }
             return;
         }
-        
+
         // Mobile: Enter always adds newline, desktop: Enter sends, Shift+Enter newline
         if (!isMobile && event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             send();
         }
     }
-    
+
     // Auto-resize input on input event
     document.getElementById('message').addEventListener('input', function() {
         autoResize(this);
     });
-    
+
     // =============================================================================
     // Drag and Drop File Upload
     // =============================================================================
-    
+
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         chat.addEventListener(eventName, preventDefaults, false);
     });
-    
+
     function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     ['dragenter', 'dragover'].forEach(eventName => {
         chat.addEventListener(eventName, () => {
             chat.classList.add('drag-over');
             dropOverlay.classList.add('active');
         }, false);
     });
-    
+
     ['dragleave', 'drop'].forEach(eventName => {
         chat.addEventListener(eventName, () => {
             chat.classList.remove('drag-over');
             dropOverlay.classList.remove('active');
         }, false);
     });
-    
+
     chat.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
         const files = dt.files;
-        
+
         if (files.length > 0) {
             handleFileUpload({ target: { files: files } });
         }
     }, false);
-    
+
     // Also handle drops on the entire page
     document.body.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropOverlay.classList.add('active');
     });
-    
+
     document.body.addEventListener('dragleave', (e) => {
         if (e.target === document.body || !e.relatedTarget) {
             dropOverlay.classList.remove('active');
         }
     });
-    
+
     document.body.addEventListener('drop', (e) => {
         e.preventDefault();
         dropOverlay.classList.remove('active');
-        
+
         const dt = e.dataTransfer;
         const files = dt.files;
-        
+
         if (files.length > 0) {
             handleFileUpload({ target: { files: files } });
         }
     });
-    
+
     // =============================================================================
     // Command Handling
     // =============================================================================
-    
+
     async function sendCommand(cmd) {
         if (isStreaming) {
             await stopGeneration();
         }
-        
+
         if (cmd.startsWith("/new")) {
             clearChatUI();
         }
@@ -2427,19 +2439,19 @@ async function deleteMessage(index) {
             await stopGeneration();
             return;
         }
-        
+
         const timestamp = formatTime();
         conversationHistory.push({ role: 'user', content: cmd, timestamp: timestamp });
         saveHistory();
         createMessageElement('user', cmd, timestamp, false, conversationHistory.length - 1);
-        
+
         try {
             const response = await fetch('/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: cmd })
             });
-            
+
             const data = await response.json();
             if (data.response) {
                 const ts = formatTime();
@@ -2461,48 +2473,52 @@ async function deleteMessage(index) {
         }
         inputField.focus();
     }
-    
+
     // =============================================================================
     // Main Send Function
     // =============================================================================
-    
+
     async function send() {
         if (!isConnected) {
             addAnnouncement('Cannot send message - not connected to server', 'error');
             return;
         }
-        
+
         const message = inputField.value.trim();
         if (!message) return;
-        
+
         if (message.startsWith('/')) {
             clearInput();
             await sendCommand(message);
             return;
         }
         if (isStreaming) return;
-        
+
         clearInput();
         const timestamp = formatTime();
         const index = conversationHistory.length;
         conversationHistory.push({ role: 'user', content: message, timestamp: timestamp });
         saveHistory();
         createMessageElement('user', message, timestamp, false, index);
-        
+
         setInputState(true, true, true);
         isStreaming = true;
         currentController = new AbortController();
-        
-        // Create AI message container
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'message ai hidden';
-        aiMsg.dataset.index = conversationHistory.length;
-        chat.insertBefore(aiMsg, typing);
-        currentAiMsg = aiMsg;
-        
+
+        // Create AI message wrapper
+        const aiWrapper = document.createElement('div');
+        aiWrapper.className = 'message-wrapper ai hidden';
+        aiWrapper.dataset.index = conversationHistory.length;
+        chat.insertBefore(aiWrapper, typing);
+        currentAiMsg = aiWrapper;
+
+        const aiMsgDiv = document.createElement('div');
+        aiMsgDiv.className = 'message ai';
+        aiWrapper.appendChild(aiMsgDiv);
+
         let aiContent = '';
         let streamStarted = false;
-        
+
         try {
             const response = await fetch('/stream', {
                 method: 'POST',
@@ -2510,104 +2526,85 @@ async function deleteMessage(index) {
                 body: JSON.stringify({ message: message }),
                 signal: currentController.signal
             });
-            
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
-            
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                
+
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\\n');
+                const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
-                
+
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
-                            
+
                             if (data.id) {
                                 currentStreamId = data.id;
                             }
-                            
+
                             if (data.cancelled) {
-                                aiMsg.classList.remove('hidden');
-                                aiMsg.innerHTML = '<span style="color:#f88;">[Cancelled]</span>';
+                                aiWrapper.classList.remove('hidden');
+                                aiMsgDiv.innerHTML = '<span style="color:#f88;">[Cancelled]</span>';
                                 const ts = document.createElement('span');
-                                ts.className = 'timestamp';
+                                ts.className = 'timestamp timestamp-left';
                                 ts.textContent = formatTime();
-                                aiMsg.appendChild(ts);
+                                aiMsgDiv.appendChild(ts);
                                 finishStream();
                                 return;
                             }
-                            
+
                             if (data.token) {
                                 if (!streamStarted) {
                                     streamStarted = true;
                                     typing.classList.remove('show');
-                                    aiMsg.classList.remove('hidden');
+                                    aiWrapper.classList.remove('hidden');
                                 }
                                 aiContent += data.token;
-                                aiMsg.innerHTML = renderMarkdown(aiContent);
-                                highlightCode(aiMsg);
-                                
-                                const ts = aiMsg.querySelector('.timestamp');
+                                aiMsgDiv.innerHTML = renderMarkdown(aiContent);
+                                highlightCode(aiMsgDiv);
+
+                                const ts = aiMsgDiv.querySelector('.timestamp');
                                 if (!ts) {
                                     const tsEl = document.createElement('span');
-                                    tsEl.className = 'timestamp';
-                                    aiMsg.appendChild(tsEl);
+                                    tsEl.className = 'timestamp timestamp-left';
+                                    aiMsgDiv.appendChild(tsEl);
                                 }
                                 scrollToBottomDelayed();
                             }
-                            
+
                             if (data.done) {
-                                aiMsg.innerHTML = renderMarkdown(aiContent);
-                                highlightCode(aiMsg);
+                                aiMsgDiv.innerHTML = renderMarkdown(aiContent);
+                                highlightCode(aiMsgDiv);
                                 const ts = document.createElement('span');
-                                ts.className = 'timestamp';
+                                ts.className = 'timestamp timestamp-left';
                                 ts.textContent = formatTime();
-                                aiMsg.appendChild(ts);
-                                
+                                aiMsgDiv.appendChild(ts);
+
                                 // Add to history
                                 conversationHistory.push({ role: 'ai', content: aiContent, timestamp: formatTime() });
-                                aiMsg.dataset.index = conversationHistory.length - 1;
+                                aiWrapper.dataset.index = conversationHistory.length - 1;
                                 saveHistory();
-                                
+
                                 // Add action buttons
-                                const actions = document.createElement('div');
-                                actions.className = 'message-actions';
-                                
-                                const copyBtn = document.createElement('button');
-                                copyBtn.className = 'message-action-btn';
-                                copyBtn.textContent = 'Copy';
-                                copyBtn.onclick = () => {
-                                    navigator.clipboard.writeText(aiContent).then(() => {
-                                        copyBtn.textContent = 'Copied!';
-                                        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-                                    });
-                                };
-                                actions.appendChild(copyBtn);
-                                
-                                const deleteBtn = document.createElement('button');
-                                deleteBtn.className = 'message-action-btn delete';
-                                deleteBtn.textContent = 'Delete';
-                                deleteBtn.onclick = () => deleteMessage(parseInt(aiMsg.dataset.index));
-                                actions.appendChild(deleteBtn);
-                                
-                                aiMsg.appendChild(actions);
+                                const actions = createActionButtons('ai', parseInt(aiWrapper.dataset.index), aiContent);
+                                aiWrapper.appendChild(actions);
                             }
-                            
+
                             if (data.error) {
                                 if (!streamStarted) {
-                                    aiMsg.classList.remove('hidden');
+                                    aiWrapper.classList.remove('hidden');
                                 }
-                                aiMsg.innerHTML = '<span style="color:#f88;">[Error: ' + data.error + ']</span>';
+                                aiMsgDiv.innerHTML = '<span style="color:#f88;">[Error: ' + data.error + ']</span>';
                                 const ts = document.createElement('span');
-                                ts.className = 'timestamp';
+                                ts.className = 'timestamp timestamp-left';
                                 ts.textContent = formatTime();
-                                aiMsg.appendChild(ts);
+                                aiMsgDiv.appendChild(ts);
                             }
                         } catch (e) {
                             // Ignore parse errors
@@ -2618,19 +2615,19 @@ async function deleteMessage(index) {
         } catch (err) {
             if (err.name !== 'AbortError') {
                 if (!streamStarted) {
-                    aiMsg.classList.remove('hidden');
+                    aiWrapper.classList.remove('hidden');
                 }
-                aiMsg.innerHTML = '<span style="color:#f88;">Error: ' + err.message + '</span>';
+                aiMsgDiv.innerHTML = '<span style="color:#f88;">Error: ' + err.message + '</span>';
                 const ts = document.createElement('span');
-                ts.className = 'timestamp';
+                ts.className = 'timestamp timestamp-left';
                 ts.textContent = formatTime();
-                aiMsg.appendChild(ts);
+                aiMsgDiv.appendChild(ts);
             }
         } finally {
             finishStream();
         }
     }
-    
+
     function finishStream() {
         setInputState(false, false, false);
         isStreaming = false;
@@ -2639,14 +2636,14 @@ async function deleteMessage(index) {
         currentStreamId = null;
         inputField.focus();
     }
-    
+
     async function stopGeneration() {
         // Stop the frontend stream
         if (currentController) {
             currentController.abort();
             currentController = null;
         }
-        
+
         // Cancel the backend stream
         if (currentStreamId) {
             try {
@@ -2660,64 +2657,71 @@ async function deleteMessage(index) {
             }
             currentStreamId = null;
         }
-        
+
         // Update UI
         if (currentAiMsg) {
             currentAiMsg.classList.remove('hidden');
-            
-            let existingContent = currentAiMsg.innerText || '';
-            existingContent = existingContent.replace(/\\s*\\d{1,2}:\\d{2}\\s*(?:AM|PM)?\\s*$/i, '').trim();
-            
-            if (existingContent) {
-                currentAiMsg.innerHTML = renderMarkdown(existingContent) + ' <span style="color:#f88;">[Stopped]</span>';
-            } else {
-                currentAiMsg.innerHTML = '<span style="color:#f88;">[Stopped]</span>';
+
+            const aiMsgDiv = currentAiMsg.querySelector('.message');
+            if (aiMsgDiv) {
+                let existingContent = aiMsgDiv.innerText || '';
+                existingContent = existingContent.replace(/\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s*$/i, '').trim();
+
+                if (existingContent) {
+                    aiMsgDiv.innerHTML = renderMarkdown(existingContent) + ' <span style="color:#f88;">[Stopped]</span>';
+                } else {
+                    aiMsgDiv.innerHTML = '<span style="color:#f88;">[Stopped]</span>';
+                }
+
+                const ts = document.createElement('span');
+                ts.className = 'timestamp timestamp-left';
+                ts.textContent = formatTime();
+                aiMsgDiv.appendChild(ts);
+
+                const finalContent = existingContent ? existingContent + ' [Stopped]' : '[Stopped]';
+                conversationHistory.push({ role: 'ai', content: finalContent, timestamp: formatTime() });
+                currentAiMsg.dataset.index = conversationHistory.length - 1;
+                saveHistory();
+
+                // Add action buttons
+                const actions = createActionButtons('ai', parseInt(currentAiMsg.dataset.index), finalContent);
+                currentAiMsg.appendChild(actions);
             }
-            
-            const ts = document.createElement('span');
-            ts.className = 'timestamp';
-            ts.textContent = formatTime();
-            currentAiMsg.appendChild(ts);
-            
-            const finalContent = existingContent ? existingContent + ' [Stopped]' : '[Stopped]';
-            conversationHistory.push({ role: 'ai', content: finalContent, timestamp: formatTime() });
-            currentAiMsg.dataset.index = conversationHistory.length - 1;
-            saveHistory();
-            
+
             currentAiMsg = null;
         }
-        
+
         // Send stop command to backend
         fetch('/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: '/stop' })
         }).catch(() => {});
-        
+
         finishStream();
     }
-    
+
     function clearChat() {
         clearChatUI();
         sendCommand('/new');
     }
-    
+
     // =============================================================================
     // File Upload
     // =============================================================================
-    
+
     async function handleFileUpload(event) {
         const file = event.target.files ? event.target.files[0] : event.dataTransfer.files[0];
         if (!file) return;
-        
+
         if (event.target) {
             event.target.value = '';
         }
-        
+
         const timestamp = formatTime();
         const uploadMsg = '[Uploading: ' + file.name + ']';
         addMessage('announce', uploadMsg);
-        
+
         try {
             const reader = new FileReader();
             const base64 = await new Promise((resolve, reject) => {
@@ -2725,7 +2729,7 @@ async function deleteMessage(index) {
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
-            
+
             const response = await fetch('/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2735,15 +2739,15 @@ async function deleteMessage(index) {
                     mimetype: file.type
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 const ts = formatTime();
                 conversationHistory.push({ role: 'user', content: '[Uploaded: ' + file.name + ']', timestamp: ts });
                 saveHistory();
                 createMessageElement('user', '[Uploaded: ' + file.name + ']', ts, false, conversationHistory.length - 1);
-                
+
                 if (data.message) {
                     addMessage('announce', data.message);
                 }
@@ -2753,24 +2757,24 @@ async function deleteMessage(index) {
         } catch (err) {
             addMessage('announce', 'Error: ' + err.message, 'error');
         }
-        
+
         inputField.focus();
     }
-    
+
     // =============================================================================
     // Polling for Announcements
     // =============================================================================
-    
+
     async function pollAnnouncements() {
         if (!isConnected) return;
-        
+
         try {
             const response = await fetch('/poll?id=' + lastAnnouncementId, {
                 signal: AbortSignal.timeout(CONFIG.POLL_TIMEOUT)
             });
-            
+
             if (!response.ok) throw new Error('Poll failed');
-            
+
             const data = await response.json();
             if (data.messages) {
                 for (const msg of data.messages) {
@@ -2786,16 +2790,16 @@ async function deleteMessage(index) {
             scheduleReconnect();
         }
     }
-    
+
     // Poll for announcements periodically
     setInterval(() => {
         if (isConnected) pollAnnouncements();
     }, CONFIG.POLL_INTERVAL);
-    
+
     // =============================================================================
     // Theme System
     // =============================================================================
-    
+
     const themes = {
         'dark-black': {
             name: 'Black',
@@ -3292,59 +3296,59 @@ async function deleteMessage(index) {
             }
         }
     };
-    
+
     let currentTheme = 'dark-black';
-    
+
     function applyTheme(themeId) {
         const theme = themes[themeId];
         if (!theme) return;
-        
+
         const root = document.documentElement;
         for (const [varName, value] of Object.entries(theme.vars)) {
             root.style.setProperty(varName, value);
         }
-        
+
         currentTheme = themeId;
         localStorage.setItem('theme', themeId);
         updateThemeButtons();
     }
-    
+
     function updateThemeButtons() {
         document.querySelectorAll('.theme-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.theme === currentTheme);
         });
     }
-    
+
     function createThemeButtons() {
         const grid = document.getElementById('theme-grid');
         grid.innerHTML = '';
-        
+
         const darkThemes = Object.entries(themes).filter(([id, t]) => t.mode === 'dark');
         const lightThemes = Object.entries(themes).filter(([id, t]) => t.mode === 'light');
-        
+
         const createButtons = (themeList) => {
             themeList.forEach(([id, theme]) => {
                 const btn = document.createElement('button');
                 btn.className = 'theme-btn' + (id === currentTheme ? ' active' : '');
                 btn.dataset.theme = id;
-                
+
                 const bgColor = theme.vars['--bg-primary'];
                 const accentColor = theme.vars['--accent'];
-                
+
                 btn.innerHTML = `
                     <div class="theme-preview" style="background: linear-gradient(135deg, ${bgColor} 50%, ${accentColor} 50%);"></div>
                     ${theme.name}
                 `;
-                
+
                 btn.onclick = () => applyTheme(id);
                 grid.appendChild(btn);
             });
         };
-        
+
         createButtons(darkThemes);
         createButtons(lightThemes);
     }
-    
+
     function loadTheme() {
         const saved = localStorage.getItem('theme');
         if (saved && themes[saved]) {
@@ -3354,11 +3358,11 @@ async function deleteMessage(index) {
         }
         createThemeButtons();
     }
-    
+
     // =============================================================================
     // Service Worker Registration (PWA)
     // =============================================================================
-    
+
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js')
@@ -3366,14 +3370,14 @@ async function deleteMessage(index) {
                 .catch(err => console.log('Service Worker registration failed:', err));
         });
     }
-    
+
     // =============================================================================
     // Initialization
     // =============================================================================
-    
+
     // Set initial connection status
     updateConnectionStatus('connecting');
-    
+
     // Check connection immediately
     setTimeout(() => {
         checkConnection().catch(err => {
@@ -3383,7 +3387,7 @@ async function deleteMessage(index) {
             scheduleReconnect();
         });
     }, 100);
-    
+
     // Load chat history and theme
     loadHistory();
     loadTheme();

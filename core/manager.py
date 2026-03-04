@@ -396,7 +396,7 @@ class Manager:
             return await self.API._recv(
                 self.API._request(prompt, tools=self.tools),
                 use_tools=True,
-                add_turn=True
+                add_turn=False
             )
         except Exception as e:
             core.log_error(f"error while processing tool results", e)

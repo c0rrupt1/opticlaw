@@ -124,7 +124,12 @@ class Channel:
                 context_display = []
 
                 for turn in context:
-                    context_display.append(f"== {turn.get('role')} ==\n{turn.get('content')}")
+                    content = turn.get("content")
+                    if not content:
+                        if turn.get("tool_calls"):
+                            content = str(turn.get("tool_calls"))
+
+                    context_display.append(f"== {turn.get('role')} ==\n{content}")
 
                 context_display.append("---")
 
