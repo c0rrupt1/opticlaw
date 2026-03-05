@@ -1654,6 +1654,7 @@ HTML_TEMPLATE = r"""
     // Stream state
     let lastAnnouncementId = 0;
     let isStreaming = false;
+    let currentUserMsg = null;
     let currentAiMsg = null;
     let currentController = null;
     let currentStreamId = null;
@@ -2813,13 +2814,35 @@ HTML_TEMPLATE = r"""
 
         clearInput();
 
-        // Add user message to display
-        addMessage({
+        // =========================================
+        // Create user message wrapper manually
+        // =========================================
+        const userWrapper = document.createElement('div');
+        userWrapper.className = 'message-wrapper user';
+        userWrapper.setAttribute('role', 'article');
+
+        const userMsgDiv = document.createElement('div');
+        userMsgDiv.className = 'message user';
+        userMsgDiv.innerHTML = renderMarkdown(message);
+        highlightCode(userMsgDiv);
+
+        const userTs = document.createElement('span');
+        userTs.className = 'timestamp timestamp-right';
+        userTs.textContent = formatTime();
+        userMsgDiv.appendChild(userTs);
+        userWrapper.appendChild(userMsgDiv);
+
+        chat.insertBefore(userWrapper, typing);
+        currentUserMsg = userWrapper;  // Store reference
+
+        // Add to displayMessages array
+        displayMessages.push({
             role: 'user',
             content: message,
             timestamp: formatTime(),
-            backendIndex: null // Will be set after stream completes
+            backendIndex: null
         });
+        userWrapper.dataset.displayIndex = displayMessages.length - 1;
 
         saveCurrentConversation();
 
@@ -2840,7 +2863,6 @@ HTML_TEMPLATE = r"""
 
         let aiContent = '';
         let streamStarted = false;
-        let backendIndex = null;
 
         try {
             const response = await fetch('/stream', {
@@ -2869,6 +2891,27 @@ HTML_TEMPLATE = r"""
 
                             if (data.id) {
                                 currentStreamId = data.id;
+                            }
+
+                            // Handle userIndex immediately when it arrives
+                            if (data.userIndex !== undefined && data.userIndex !== null) {
+                                displayMessages[displayMessages.length - 1].backendIndex = data.userIndex;
+
+                                if (currentUserMsg) {
+                                    const timestamp = currentUserMsg.querySelector('.timestamp');
+                                    if (timestamp && !timestamp.querySelector('.index-badge')) {
+                                        const indexBadge = document.createElement('span');
+                                        indexBadge.className = 'index-badge';
+                                        indexBadge.textContent = '#' + data.userIndex;
+                                        timestamp.appendChild(indexBadge);
+                                    }
+                                    if (!currentUserMsg.querySelector('.message-actions')) {
+                                        const displayIndex = parseInt(currentUserMsg.dataset.displayIndex);
+                                        const actions = createActionButtons('user', displayIndex, message, data.userIndex);
+                                        currentUserMsg.appendChild(actions);
+                                    }
+                                    currentUserMsg = null;  // Clear reference after use
+                                }
                             }
 
                             if (data.cancelled) {
@@ -2908,7 +2951,6 @@ HTML_TEMPLATE = r"""
                                 ts.className = 'timestamp timestamp-left';
                                 ts.textContent = formatTime();
 
-                                // Add backend index badge
                                 if (data.backendIndex !== undefined && data.backendIndex !== null) {
                                     const indexBadge = document.createElement('span');
                                     indexBadge.className = 'index-badge';
@@ -2918,18 +2960,6 @@ HTML_TEMPLATE = r"""
 
                                 aiMsgDiv.appendChild(ts);
 
-                                // Update the user message's backend index now that we know it
-                                if (data.userIndex !== undefined && data.userIndex !== null) {
-                                    // Find the last user message and set its backend index
-                                    for (let i = displayMessages.length - 1; i >= 0; i--) {
-                                        if (displayMessages[i].role === 'user') {
-                                            displayMessages[i].backendIndex = data.userIndex;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                // Add AI message to display
                                 displayMessages.push({
                                     role: 'ai',
                                     content: aiContent,
@@ -2938,11 +2968,9 @@ HTML_TEMPLATE = r"""
                                 });
                                 aiWrapper.dataset.displayIndex = displayMessages.length - 1;
 
-                                // Add action buttons
                                 const actions = createActionButtons('ai', parseInt(aiWrapper.dataset.displayIndex), aiContent, data.backendIndex);
                                 aiWrapper.appendChild(actions);
 
-                                // Save conversation
                                 saveCurrentConversation();
                             }
 
@@ -3995,9 +4023,15 @@ def stream_message():
         done = object()
 
         async def collect_tokens():
-            """Collect tokens from the AI and put them in the queue."""
             try:
-                async for token in channel_instance.send_stream("user", user_message):
+                # Insert user message first to get the index immediately
+                if hasattr(channel_instance.manager, 'API') and hasattr(channel_instance.manager.API, 'insert_message'):
+                    await channel_instance.manager.API.insert_message("user", user_message)
+                user_index = len(channel_instance.manager.API._messages) - 1 if hasattr(channel_instance.manager.API, '_messages') else 0
+                token_queue.put(('user_index', user_index))
+
+                # Stream without adding the message again
+                async for token in channel_instance.send_stream("user", user_message, add_message=False):
                     if stream_id in stream_cancellations:
                         stream_cancellations.discard(stream_id)
                         token_queue.put(('cancelled', True))
@@ -4013,21 +4047,19 @@ def stream_message():
         # Send stream ID first
         yield f"data: {json.dumps({'id': stream_id})}\n\n"
 
-        # Get user message index after it was inserted
-        user_index = len(channel_instance.manager.API._messages) - 1 if hasattr(channel_instance.manager.API, '_messages') else 0
-
         # Stream tokens
         while True:
             item = token_queue.get()
 
             if item is done:
-                # NOW send backend indices - after stream completes successfully
-                assistant_index = len(channel_instance.manager.API._messages) - 1 if hasattr(channel_instance.manager.API, '_messages') else 0
-                yield f"data: {json.dumps({'done': True, 'backendIndex': assistant_index, 'userIndex': user_index})}\n\n"
+                messages = channel_instance.manager.API._messages if hasattr(channel_instance.manager.API, '_messages') else []
+                assistant_index = len(messages) - 1
+                yield f"data: {json.dumps({'done': True, 'backendIndex': assistant_index})}\n\n"
                 break
             elif isinstance(item, tuple):
-                if item[0] == 'error':
-                    # Roll back the user message on error
+                if item[0] == 'user_index':
+                    yield f"data: {json.dumps({'userIndex': item[1]})}\n\n"
+                elif item[0] == 'error':
                     if hasattr(channel_instance.manager.API, '_messages'):
                         messages = channel_instance.manager.API._messages
                         if len(messages) > 0 and messages[-1].get('role') == 'user':
