@@ -23,7 +23,7 @@ class APIClient():
     def get_model(self):
         return self._model
 
-    def _count_tokens_local(self, messages: list) -> int:
+    def count_tokens_local(self, messages: list) -> int:
         """
         Counts tokens locally using tiktoken. 
         Used as a fallback if the API doesn't return usage data.
@@ -70,8 +70,8 @@ class APIClient():
             max_tokens = core.config.get("max_context", 8192)
 
         if not num_tokens:
-            # default to character length if we couldn't get the token amount
-            num_tokens = len(str(self._messages))
+            # fall back to counting messages list using tiktoken
+            num_tokens = self.count_tokens_local(self._messages)
 
         request_too_big = False
         context_trimmed = False
@@ -143,16 +143,16 @@ class APIClient():
         message_history = await self.build_context(system_prompt=False)
         sysprompt = await self.manager.get_system_prompt()
         histend = await self.manager.get_end_prompt()
-        sysprompt_size_tokens = self._count_tokens_local([{"role": "system", "content": sysprompt}])
+        sysprompt_size_tokens = self.count_tokens_local([{"role": "system", "content": sysprompt}])
         sysprompt_size_words = len(str(sysprompt).split())
-        message_hist_size_tokens = self._count_tokens_local(self._messages)
+        message_hist_size_tokens = self.count_tokens_local(self._messages)
         message_hist_size_words = len(str(message_history).split())
-        histend_size_tokens = self._count_tokens_local([{"role": "user", "content": histend}])
+        histend_size_tokens = self.count_tokens_local([{"role": "user", "content": histend}])
         histend_size_words = len(str(histend).split())
 
         combined_size_words = message_hist_size_words+sysprompt_size_words+histend_size_words
         
-        token_usage = self._count_tokens_local(await self.build_context(system_prompt=True))
+        token_usage = self.count_tokens_local(await self.build_context(system_prompt=True))
 
         return {
             "system prompt size": f"{sysprompt_size_tokens} tokens | {sysprompt_size_words} words",
@@ -179,7 +179,7 @@ class APIClient():
         if use_context:
             if add_message:
                 # try to check how big (in tokens) the request content is
-                # num_tokens = self._count_tokens_local({"role": role, "content": content})
+                # num_tokens = self.count_tokens_local({"role": role, "content": content})
                 # if num_tokens > core.config.get("max_tokens", 8192):
                 #     if self.manager.channel:
                 #         self.manager.channel.announce("error: request was too big!", False)
@@ -265,7 +265,7 @@ class APIClient():
                 token_usage = response.usage.prompt_tokens
             else:
                 # fall back to tokenizer counting if api didn't provide a token count
-                token_usage = self._count_tokens_local(context)
+                token_usage = self.count_tokens_local(context)
 
             await self.insert_message("assistant", final_content, num_tokens=token_usage)
 
@@ -333,7 +333,7 @@ class APIClient():
 
             if token_usage is None:
                 # fall back to tokenizer for context length counting
-                token_usage = self._count_tokens_local(context)
+                token_usage = self.count_tokens_local(context)
 
             # add it to context
             if add_message:

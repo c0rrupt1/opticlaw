@@ -343,81 +343,101 @@ class Manager:
         return loaded_module
 
     async def handle_tool_calls(self, tool_calls):
-        results = []
+        # Fix broken JSON and convert to dicts
+        repaired_tool_calls = []
 
-        # add toolcalls to context
-        tools_called = {
-            "role": "assistant",
-            "tool_calls": [tool_call.to_dict() for tool_call in tool_calls]
-        }
-        self.API._messages.append(tools_called)
-
-        # call any tool calls based on the stored tool call function
         for tool_call in tool_calls:
-            # does the method exist within any of the loaded classes?
+            tool_call_dict = tool_call.to_dict()
+
+            # Fix broken JSON arguments (this was a pain..)
+            raw_args = tool_call_dict['function']['arguments']
+            modified_args = json_repair.loads(raw_args)
+            tool_call_dict['function']['arguments'] = json.dumps(modified_args)
+
+            repaired_tool_calls.append(tool_call_dict)
+
+        # Add fixed tool calls to the context
+        self.API._messages.append({
+            "role": "assistant",
+            "tool_calls": repaired_tool_calls
+        })
+
+        # Execute each tool and add their responses
+        for tool_call_dict in repaired_tool_calls:
+            tool_name = tool_call_dict['function']['name']
+            tool_args = json_repair.loads(tool_call_dict['function']['arguments'])
+
+            # Find the module that contains the target tool
             module_instance = None
+            module_instance_display_name = None
+
             for module_name, module_obj in self.modules.items():
-                # translate the class name to be like the way it displays to the user
                 class_display_name = core.modules.get_name(module_obj)
-                # ditto for the function name
-                translated_tool_name = str(tool_call.function.name).replace(f"{class_display_name}_", "")
+                translated_tool_name = tool_name.replace(f"{class_display_name}_", "")
 
                 if hasattr(module_obj, translated_tool_name):
-                    # get reference to it from the already instantiated class
+                    # module found!
                     module_instance = module_obj
                     module_instance_display_name = class_display_name
+                    break
 
             if module_instance:
-                # use the user-displayed class name to strip the function name of it
-                # earlier on we prefixed the name of each tool with the class's display name so that the 
-                # LLM knows which class a tool belongs to (e.g. memory_get = MemoryTool class's get() method)
-                translated_tool_name = str(tool_call.function.name).replace(f"{module_instance_display_name}_", "")
-
-                # get the class method object
+                translated_tool_name = tool_name.replace(f"{module_instance_display_name}_", "")
                 func_callable = getattr(module_instance, translated_tool_name)
 
-                # format its arguments in a JSON format the llm will understand
-                arg_obj = json_repair.loads(tool_call.function.arguments)
+                # Create a nice string the user will see
                 arg_display = []
-                for arg_name, arg_value in arg_obj.items():
-                    arg_display.append(str(arg_value))
-                arg_display = ", ".join(arg_display)
-                if len(arg_display) > 100:
-                    arg_display = f"{arg_display[:100]}.."
-                announce_string = f"calling tool {tool_call.function.name}({arg_display})"
+                for key, value in tool_args.items():
+                    value = str(value)
+                    if len(value) > 50:
+                        value = f"{value[:50]}.."
+                    arg_display.append(f"{key}={value}")
+                arg_display_str = ", ".join(arg_display)
+                announce_string = f"calling tool {tool_name}({arg_display_str})"
+
                 if self.channel:
                     await self.channel.announce(announce_string)
                 else:
                     core.log("toolcall", announce_string)
 
-                # call the class method
+                # Execute the class method
                 try:
-                    func_response = await func_callable(**arg_obj)
-                    # and add the method's return value to the LLM's context window as a tool call response
-                    tool_response = {"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(str(func_response))}
+                    func_response = await func_callable(**tool_args)
+                    tool_response = {
+                        "role": "tool",
+                        "tool_call_id": tool_call_dict['id'],
+                        "content": json.dumps(str(func_response))
+                    }
                 except Exception as e:
                     core.log("toolcall", f"error: {str(e)}")
-                    tool_response = {"role": "tool", "tool_call_id": tool_call.id, "content": f"error: {str(e)}"}
+                    tool_response = {
+                        "role": "tool",
+                        "tool_call_id": tool_call_dict['id'],
+                        "content": f"error: {str(e)}"
+                    }
 
                 self.API._messages.append(tool_response)
             else:
-                core.log("toolcall", f"tried to call tool {tool_call.function.name} but couldnt find it?!")
+                core.log("toolcall", f"tried to call tool {tool_name} but couldn't find it")
 
-        # get user's last request from messages
-        user_last_message = {}
-        for message in self.API._messages:
-            if message.get("role") == "user":
-                user_last_message = message
-
-        if not self.API.cancel_request:
-            prompt = [{"role": "system", "content": "If the tool response provides sufficient answers, tell the user the results. If not, consider if you need to use another tool? If so, call it."}]+self.API._messages
-        else:
+        if self.API.cancel_request:
             if self.channel:
                 await self.channel.announce("toolcalling chain cancelled", "info")
             return None
 
-        return await self.API._recv(
-            await self.API._request(prompt, tools=self.tools),
-            use_tools=True,
-            add_message=False
-        )
+        prompt = [
+            {"role": "system", "content": "If the tool response provides sufficient answers, tell the user the results. If not, consider if you need to use another tool? If so, call it."}
+        ] + self.API._messages
+        await self.API.trim_messages(num_tokens=self.API.count_tokens_local(prompt))
+
+        try:
+            return await self.API._recv(
+                await self.API._request(prompt, tools=self.tools),
+                use_tools=True,
+                add_message=False
+            )
+        except Exception as e:
+            core.log("error", f"error while handling tool calls: {e}")
+            if self.channel:
+                await self.channel.announce(f"error while handling tool calls: {e}", "error")
+            return None
