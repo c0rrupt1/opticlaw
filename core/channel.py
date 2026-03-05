@@ -43,11 +43,11 @@ class Channel:
 
         match cmd[0]:
             case "new":
-                self.manager.API._turns = []
+                self.manager.API._messages = []
                 return "New session started."
             case "clear":
                 # alias for "new"
-                self.manager.API._turns = []
+                self.manager.API._messages = []
                 return "New session started."
             case "help":
                 return get_help()
@@ -128,13 +128,13 @@ class Channel:
 
                 context_display = []
 
-                for turn in context:
-                    content = turn.get("content")
+                for message in context:
+                    content = message.get("content")
                     if not content:
-                        if turn.get("tool_calls"):
-                            content = str(turn.get("tool_calls"))
+                        if message.get("tool_calls"):
+                            content = str(message.get("tool_calls"))
 
-                    context_display.append(f"== {turn.get('role')} ==\n{content}")
+                    context_display.append(f"== {message.get('role')} ==\n{content}")
 
                 context_display.append("---")
 
@@ -191,5 +191,5 @@ class Channel:
         return
 
     async def ask(self, message: str):
-        """sends a message in the channel and then intercepts communication for one turn so that user can be asked for input without that input being sent to the LLM. useful for menus."""
+        """sends a message in the channel and then intercepts communication for one message so that user can be asked for input without that input being sent to the LLM. useful for menus."""
         pass
