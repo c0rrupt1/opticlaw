@@ -75,8 +75,10 @@ class APIClient():
 
         request_too_big = False
         context_trimmed = False
-        while len(self._messages) > max_messages or num_tokens > max_tokens:
-            context_trimmed = True
+        message_count_exceeded = (len(self._messages) >= max_messages)
+        tokens_exceeded = (num_tokens >= max_tokens)
+        # need to recalculate it cuz this is a while loop
+        while len(self._messages) >= max_messages or num_tokens >= max_tokens:
             if not self._messages:
                 request_too_big = True
                 # we've exhausted all messages. handle it later in this function
@@ -87,8 +89,10 @@ class APIClient():
             if request_too_big:
                 # the entire thing was too big including user's input! inform them
                 await self.manager.channel.announce("Your request exceeds the max amount of tokens allowed. Please send a smaller request!", "error")
+            elif message_count_exceeded:
+                await self.manager.channel.announce(f"You exceeded the max amount of messages set in your settings! Context size trimmed.\n\nAmount of messages: {len(self._messages)}\nMax messages allowed: {max_messages}", "error")
             elif context_trimmed:
-                await self.manager.channel.announce("Input was too large! context size trimmed.", "error")
+                await self.manager.channel.announce("Input was too large! Context size trimmed.\n\nSent tokens: {num_tokens}\nMax allowed tokens: {max_tokens}", "error")
         return len(self._messages) <= max_messages
 
     async def _request(self, context, debug=False, tools=None, stream=False):
@@ -148,12 +152,14 @@ class APIClient():
 
         combined_size_chars = message_hist_size_chars+sysprompt_size_chars+histend_size_chars
         combined_size_words = message_hist_size_words+sysprompt_size_words+histend_size_words
+        
+        token_usage = self._count_tokens_local(await self.build_context(system_prompt=True))
 
         return {
             "system prompt size": f"{sysprompt_size_chars} characters | {sysprompt_size_words} words",
             "message history size": f"{message_hist_size_chars} characters | {message_hist_size_words} words",
             "end prompt size": f"{histend_size_chars} characters | {histend_size_words} words",
-            "total size": f"{combined_size_chars} characters | {combined_size_words} words"
+            "total size": f"{token_usage} tokens | {combined_size_chars} characters | {combined_size_words} words",
         }
 
     async def send(self, role: str, content: str, system_prompt=True, channel=None, use_context=None, use_tools=True, tools=None, add_message=True, debug=False, **kwargs):

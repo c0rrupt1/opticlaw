@@ -2110,6 +2110,8 @@ HTML_TEMPLATE = r"""
                         addAnnouncement('Reconnected to server', 'info');
                         // push the conversation history back down into the backend
                         loadConversation(currentConversationId);
+                        // reset last announcement id so that announcements show up
+                        lastAnnouncementId = 0;
                     }
                 }
             } else {
