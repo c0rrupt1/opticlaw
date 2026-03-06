@@ -1439,11 +1439,22 @@ function finishStream() {
 
 async function sendCommand(message) {
     try {
-        const response = await fetch('/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message })
-        });
+        if (message.startsWith("/stop")) {
+            // if the command was stop, dont await the response, just send it immediately
+            const response = fetch('/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+            await stopGeneration(true);
+        } else {
+            // for any other command, wait the response
+            const response = await fetch('/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+        }
 
         // Only sync immediately if NOT streaming - otherwise pollMessages() handles it
         // syncMessages() clears all message wrappers including the active streaming one
@@ -1456,13 +1467,21 @@ async function sendCommand(message) {
     }
 }
 
-async function stopGeneration() {
+async function stopGeneration(sent_from_command = false) {
     if (currentController) {
         currentController.abort();
         currentController = null;
     }
 
     if (currentStreamId) {
+        if (!sent_from_command) {
+            // send the stop command to the server
+            fetch('/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: "/stop" })
+            });
+        }
         try {
             await fetch('/cancel', {
                 method: 'POST',
