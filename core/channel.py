@@ -12,6 +12,7 @@ class Channel:
     def __init__(self, manager):
         self.name = self.__class__.__name__
         self.manager = manager
+        self._last_cmd_was_temporary = False
 
     async def _get_help(self):
         output = []
@@ -119,6 +120,8 @@ class Channel:
                     tools_display = "\n".join(tools)
                     tool_map_display.append(f"== {module_name} ==\n{tools_display}")
 
+                self._last_cmd_was_temporary = True
+
                 return "\n\n".join(tool_map_display)
             case "sysprompt":
                 if not core.config.get("context_window"):
@@ -136,6 +139,8 @@ class Channel:
                 if endprompt:
                     sysprompt += f"\n\n=== end prompts ===\n{endprompt}"
 
+                self._last_cmd_was_temporary = True
+
                 return sysprompt if sysprompt else "BLANK"
             case "context":
                 if not core.config.get("context_window"):
@@ -144,6 +149,8 @@ class Channel:
                 context = await self.manager.API.build_context(system_prompt=True)
                 if not context:
                     return "BLANK"
+
+                self._last_cmd_was_temporary = True
 
                 context_display = []
 
@@ -189,6 +196,14 @@ class Channel:
 
     async def send(self, role: str, message: str, **kwargs):
         """sends a message to the AI from within the current channel"""
+        if self._last_cmd_was_temporary:
+            # Remove the last two messages: the command and the command_response
+            # We pop twice to ensure both the trigger and the result are gone.
+            if len(self.manager.API._messages) >= 2:
+                self.manager.API._messages.pop()
+                self.manager.API._messages.pop()
+                self._last_cmd_was_temporary = False
+
         cmd = await self._process_input(message)
         if cmd:
             # insert /command into messages so that it gets properly tracked and displayed
@@ -203,6 +218,11 @@ class Channel:
 
     async def send_stream(self, role: str, message: str, **kwargs):
         """sends a message to the AI from within the current channel, streaming version"""
+        if len(self.manager.API._messages) >= 2:
+            self.manager.API._messages.pop()
+            self.manager.API._messages.pop()
+            self._last_cmd_was_temporary = False
+
         cmd = await self._process_input(message)
         if cmd:
             # insert /command into messages so that it gets properly tracked and displayed
