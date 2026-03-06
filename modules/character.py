@@ -87,6 +87,11 @@ class Character(core.module.Module):
         character = self.characters.get(name)
         self.active_character.set(name)
         return self.result(str({"instructions": f"Write your next reply as the character {name}.", "character": self._rewrite_character(name, character.get("identity"))}))
+    
+    async def switch_to_default(self):
+        """Switches you back to the default character."""
+        self.active_character.set(None)
+        return "success"
 
     def _case_insensitive_replace(self, text, old, new):
         """
@@ -211,6 +216,12 @@ class Character(core.module.Module):
         self.user_profile["profile"] = profile
         self.user_profile.save()
         return self.result("profile set")
+    async def clear_user_profile(self):
+        """clears the profile of the user. ONLY use if user explicitely asks for it!"""
+        del(self.user_profile["name"])
+        del(self.user_profile["profile"])
+        self.user_profile.save()
+        return self.result("profile cleared")
 
     # async def list(self):
     #     """
