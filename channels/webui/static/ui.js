@@ -237,7 +237,7 @@ function createMessageElement(msg, index, animate = false) {
 
     let wrapperClass, msgClass;
 
-       if (parsed.isAnnouncement) {
+    if (parsed.isAnnouncement) {
         wrapperClass = 'announce';
         msgClass = `announce ${parsed.type}`;
     } else if (parsed.isCommandOutput) {
@@ -532,9 +532,14 @@ function showAnnouncementNotification(content, type) {
     if (notificationPermission !== 'granted') return;
     if (!('Notification' in window)) return;
 
+    if (type !== "schedule") {
+        // only notify for scheduler events
+        return;
+    }
+
     // Determine notification options based on type
     const typeSettings = {
-        info: { icon: '📢', tag: 'announce-info' },
+        schedule: { icon: '📢', tag: 'announce-info' },
         warning: { icon: '⚠️', tag: 'announce-warning' },
         error: { icon: '❌', tag: 'announce-error' },
         success: { icon: '✅', tag: 'announce-success' }
