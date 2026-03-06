@@ -65,18 +65,25 @@ class Character(core.module.Module):
                 return f"currently active character: {char}"
             else:
                 return "please provide a character name."
+        elif name in("reset", "default"):
+                self.active_character.set(None)
+                return "character has been reset to default"
         elif name == "list":
             return self._list_characters()
 
-        if self.manager.channel:
-            response = await self.switch(name)
-            #await self.manager.channel.send("user", f"Hi {name}")
-            return f"character switched to {name}"
+        character = self._find_character(name)
+        if not character:
+            return f"character {name} does not exist!"
+        response = await self.switch(character)
+        #await self.manager.channel.send("user", f"Hi {name}")
+        return f"character switched to {character}"
 
     async def on_command_help(self):
         return """
+/character              show currently active character
 /character <name>       switches to that character
 /character list         lists all characters
+/character reset        reset to default character
 """
 
     async def switch(self, name: str):
@@ -174,6 +181,9 @@ class Character(core.module.Module):
         if name:
             return self.result("character already exists", False)
 
+        if not character:
+            return self.result("character must not be blank.")
+
         self.characters[name] = {
             "identity": character,
             "category": category.lower()
@@ -190,7 +200,7 @@ class Character(core.module.Module):
         if not name:
             return self.result("character doesn't exist!", False)
 
-        if character:
+        if not None and len(character) > 0:
             self.characters[name]["identity"] = character
         if category:
             self.characters[name]["category"] = category.lower()

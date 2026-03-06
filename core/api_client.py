@@ -22,6 +22,9 @@ class APIClient():
 
     def get_model(self):
         return self._model
+    def set_model(self, name: str):
+        self._model = name
+        return self._model
 
     def count_tokens_local(self, messages: list) -> int:
         """

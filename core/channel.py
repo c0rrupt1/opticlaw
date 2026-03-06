@@ -71,12 +71,7 @@ class Channel:
                 return await self._get_help()
             case "status":
                 return "\n".join(await self.manager.get_status())
-            case "models":
-                return "not implemented yet"
-            case "model":
-                return "not implemented yet"
             case "modules":
-                # TODO: also get disabled modules
                 modules_str = "\n".join(core.config.get("modules"))
                 modules_disabled_str = "\n".join(core.config.get("modules_disabled"))
                 modules_loaded_str = "\n".join(self.manager.modules.keys())
@@ -177,9 +172,7 @@ class Channel:
 
                 return "\n\n".join(context_display)
             case "restart":
-                await self.announce("restarting server..")
-                time.sleep(0.1)
-                os.execv(sys.argv[0], sys.argv)
+                await core.restart(channel)
             case "stop":
                 # just use restart for now until i figure out how to kill the asyncio tasks
                 await self.manager.API.cancel()
