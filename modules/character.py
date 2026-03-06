@@ -4,11 +4,15 @@ class Character(core.module.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.characters = core.storage.StorageDict("characters", type="json")
-        self.active_character = core.storage.StorageText("current_char")
-        self._header = "Your identity"
+        self.active_character = core.storage.StorageText("character_current")
+        self.user_profile = core.storage.StorageDict("character_user", "json")
+        self._header = "Profiles"
 
     def _list_characters(self):
         # collect categories
+        if not self.characters:
+            return {}
+
         sorted_by_cat = {}
         for character_name, character in self.characters.items():
             category = character.get("category", None)
@@ -35,14 +39,32 @@ class Character(core.module.Module):
         curr_char = self.characters.get(self.active_character.get())
         character_text = ""
         if curr_char:
-            character_text = self.characters.get(self.active_character.get(), None).get("identity", "")
+            character_name = self.active_character.get()
+            character_profile = self.characters.get(character_name, "").get("identity", "")
+            character_text = f"Name: {character_name}\nProfile: {character_profile}\n\n"
 
-        return f"{character_text}\n\nYou can switch between identities using character_switch(). User can switch characters using the `/character` command. Characters available to switch yourself to:\n{self._list_characters()}"
+        if not character_text:
+            character_text = "You are a helpful AI assistant."
+            character_name = "Assistant"
+
+        user_name = self.user_profile.get("name", "User")
+
+        character_text += f"\n\nWrite your replies as {character_name} in a chat between {character_name} and {user_name}."
+
+        user_profile = ""
+        if self.user_profile:
+            user_profile = f"## User\nName: {self.user_profile.get('name')}\nProfile: {self.user_profile.get('profile')}"
+
+        return f"{user_profile}\n\n## You\n{character_text}\n\nYou can switch between identities using character_switch(). User can switch characters using the `/character` command. Characters available to switch yourself to:\n{self._list_characters()}"
 
     async def on_command(self, cmd: str):
         name = " ".join(cmd)
         if not name:
-            return "please provide a character name."
+            char = self.active_character.get()
+            if char:
+                return f"currently active character: {char}"
+            else:
+                return "please provide a character name."
         elif name == "list":
             return self._list_characters()
 
@@ -62,8 +84,9 @@ class Character(core.module.Module):
         name = self._find_character(name)
         if not name:
             return self.result("character not found", False)
+        character = self.characters.get(name)
         self.active_character.set(name)
-        return self.result(f"You are now {name}. Write your next reply as {name}")
+        return self.result(str({"instructions": f"Write your next reply as the character {name}.", "character": self._rewrite_character(name, character.get("identity"))}))
 
     def _case_insensitive_replace(self, text, old, new):
         """
@@ -110,11 +133,12 @@ class Character(core.module.Module):
 
     def _rewrite_character(self, name: str, character: str):
         """rewrites a character to automatically port over character cards"""
+        user_name = self.user_profile.get("name", "user")
         replacement_map = {
             "{{char}}": name,
             "{char}": name,
-            "{{user}}": "user",
-            "{user}": "user",
+            "{{user}}": user_name,
+            "{user}": user_name,
             "you are": f"{name} is",
             "you should": f"{name} should",
             "you must": f"{name} must",
@@ -146,7 +170,7 @@ class Character(core.module.Module):
             return self.result("character already exists", False)
 
         self.characters[name] = {
-            "identity": self._rewrite_character(name, character),
+            "identity": character,
             "category": category.lower()
         }
         self.characters.save()
@@ -180,6 +204,13 @@ class Character(core.module.Module):
             self.characters.save()
             return self.result(f"character {name} deleted")
         return self.result("character doesn't exist!", False)
+
+    async def set_user_profile(self, name: str, profile: str):
+        """sets the name and profile of the user"""
+        self.user_profile["name"] = name
+        self.user_profile["profile"] = profile
+        self.user_profile.save()
+        return self.result("profile set")
 
     # async def list(self):
     #     """

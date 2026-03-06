@@ -32,7 +32,7 @@ for channel in channels.get_all(respect_config=False):
 
 for module in modules.get_all(respect_config=False):
     module_name = core.module.get_name(module)
-    if module_name in ("character", "memory", "scheduler", "channel", "model"):
+    if module_name in ("memory", "scheduler", "channel", "model"):
         default_config["modules"].append(module_name)
     else:
         default_config["modules_disabled"].append(module_name)

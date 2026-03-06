@@ -229,8 +229,13 @@ class StorageText:
         if not os.path.exists(data_dir):
             os.mkdir(data_dir)
 
+        self._data = ""
+
         self.path = core.get_path(os.path.join(data_dir, file_path))
-        self.load()
+        if not os.path.exists(self.path):
+            self.load()
+        else:
+            self.save()
 
     def __str__(self, *args, **kwargs):
         return self._data
@@ -242,8 +247,6 @@ class StorageText:
         return str(self._data)
 
     def load(self):
-        if not os.path.exists(self.path):
-            return False
         try:
             with open(self.path, "r") as f:
                 self._data = f.read()
@@ -252,9 +255,6 @@ class StorageText:
         return self
 
     def save(self):
-        if not self._data:
-            return False
-
         with open(self.path, "w") as f:
             f.write(self._data)
 

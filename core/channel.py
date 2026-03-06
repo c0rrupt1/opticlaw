@@ -125,6 +125,8 @@ class Channel:
                     return "CONTEXT DISABLED"
 
                 _sysprompt = await self.manager.get_system_prompt()
+                if not _sysprompt:
+                    _sysprompt = "BLANK"
                 sysprompt = f"=== system prompt ===\n{_sysprompt}"
                 disabled_prompts = core.config.get("modules_disable_prompts")
                 if disabled_prompts:

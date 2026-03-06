@@ -399,9 +399,7 @@ def upload_file():
         content = base64.b64decode(content_b64).decode('utf-8', errors='replace')
 
         async def insert_file():
-            await channel_instance.manager.API.insert_message("user", f"[File: {filename}]\n{content[:1000]}...")
-            if len(content) > 1000:
-                await channel_instance.announce(f"File truncated (showing first 1000 of {len(content)} bytes)", "info")
+            await channel_instance.manager.API.insert_message("user", f"[File: {filename}]\n{content}...")
 
         asyncio.run_coroutine_threadsafe(
             insert_file(),
