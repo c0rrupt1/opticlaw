@@ -525,45 +525,15 @@ def load_conversation():
 @app.route('/manifest.json')
 def manifest():
     """Serve the PWA manifest."""
-    return jsonify({
-        "name": "OptiClaw",
-        "short_name": "OptiClaw",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#111111",
-        "theme_color": "#111111",
-        "orientation": "portrait-primary",
-        "icons": [
-            {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}
-        ]
-    })
+    with open(core.get_path("channels/webui/manifest.json")) as f:
+        manifest = json.loads(f.read());
+    return jsonify(manifest)
 
 @app.route('/sw.js')
 def service_worker():
     """Serve the service worker."""
-    sw_code = """
-const CACHE_NAME = 'opticlaw-v1';
-const ASSETS = ['/', '/manifest.json'];
-
-self.addEventListener('install', (e) => {
-    e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
-});
-
-self.addEventListener('activate', (e) => {
-    e.waitUntil(caches.keys().then(keys => 
-        Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ));
-});
-
-self.addEventListener('fetch', (e) => {
-    if (new URL(e.request.url).origin !== location.origin) return;
-
-    e.respondWith(
-        caches.match(e.request).then(r => r || fetch(e.request))
-    );
-});
-"""
+    with open(core.get_path("channels/webui/sw.js")) as f:
+        sw_code = f.read();
     response = Response(sw_code, mimetype='application/javascript')
     response.headers['Cache-Control'] = 'no-store'
     return response

@@ -706,8 +706,12 @@ async function pollMessages() {
             for (const msg of data.messages) {
                 const parsed = parseMessageContent(msg.content);
 
-                // During streaming, only allow announcements through
-                if (isStreaming && !parsed.isAnnouncement) continue;
+                // During streaming, allow announcements and command-related messages through
+                if (isStreaming && !parsed.isAnnouncement) {
+                    const isUserCommand = msg.role === 'user' && msg.content.trim().startsWith('/');
+                    const isCommandOutput = parsed.isCommandOutput;
+                    if (!isUserCommand && !isCommandOutput) continue;
+                }
 
                 // Show browser notification for announcements (always)
                 if (parsed.isAnnouncement) {
@@ -1143,7 +1147,8 @@ function showShortcutsModal() {
 // =============================================================================
 
 function setInputState(disabled, showTyping = false, showStop = false) {
-    inputField.disabled = disabled;  // FIXED: was always false
+    // Keep input enabled so users can type/send commands during streaming
+    inputField.disabled = false;
     sendBtn.disabled = disabled;
 
     typing.classList.toggle('show', showTyping);
@@ -1270,7 +1275,6 @@ document.body.addEventListener('drop', (e) => {
 // Main Send Function
 // =============================================================================
 
-let isCommand = false;
 async function send() {
     if (!isConnected) {
         return;
@@ -1279,10 +1283,15 @@ async function send() {
     const message = inputField.value.trim();
     if (!message) return;
 
+    // Commands bypass the streaming lock entirely
+    if (message.trim().startsWith('/')) {
+        clearInput();
+        return sendCommand(message);
+    }
+
     if (isStreaming) return;
 
     clearInput();
-    isCommand = message.trim().startsWith('/');
 
     const userWrapper = document.createElement('div');
 
@@ -1378,12 +1387,8 @@ async function send() {
                                 aiWrapper.classList.remove('hidden');
                             }
                             aiContent += data.token;
-                            if (isCommand) {
-                                aiMsgDiv.innerHTML = `<pre>${escapeHtml(aiContent)}</pre>`;
-                            } else {
-                                aiMsgDiv.innerHTML = renderMarkdown(aiContent);
-                                highlightCode(aiMsgDiv);
-                            }
+                            aiMsgDiv.innerHTML = renderMarkdown(aiContent);
+                            highlightCode(aiMsgDiv);
                             scrollToBottomDelayed();
                         }
 
@@ -1425,6 +1430,25 @@ function finishStream() {
     currentController = null;
     currentStreamId = null;
     inputField.focus();
+}
+
+async function sendCommand(message) {
+    try {
+        const response = await fetch('/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: message })
+        });
+
+        // Only sync immediately if NOT streaming - otherwise pollMessages() handles it
+        // syncMessages() clears all message wrappers including the active streaming one
+        if (!isStreaming) {
+            await syncMessages();
+            await saveCurrentConversation();
+        }
+    } catch (err) {
+        console.error('Command failed:', err);
+    }
 }
 
 async function stopGeneration() {

@@ -755,8 +755,8 @@ header h1 {
 
 /* User command messages - right-aligned monospace bubble */
 .message.user_command {
-    background: linear-gradient(135deg, #2a3a2a 0%, #1f2f1f 100%);
-    border: 1px solid #3a5a3a;
+    background: var(--bg-message-command);
+    border: 1px solid var(--border-message);
     font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-size: 0.85rem;
     border-bottom-right-radius: var(--radius-sm);
@@ -771,8 +771,8 @@ header h1 {
 
 /* Command response messages - left-aligned monospace bubble */
 .message.command_response {
-    background: linear-gradient(135deg, #2a2a3a 0%, #1f1f2f 100%);
-    border: 1px solid #3a3a5a;
+    background: var(--bg-message-command-response);
+    border: 1px solid var(--border-message);
     font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-size: 0.85rem;
     border-bottom-left-radius: var(--radius-sm);
