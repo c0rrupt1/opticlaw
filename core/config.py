@@ -22,6 +22,14 @@ default_config = {
     "context_window": True
 }
 
+default_modules = (
+    "modules",
+    "models",
+    "memory",
+    "scheduler",
+    "channel"
+)
+
 for channel in channels.get_all(respect_config=False):
     channel_name = core.module.get_name(channel)
     if channel == "debug":
@@ -32,7 +40,7 @@ for channel in channels.get_all(respect_config=False):
 
 for module in modules.get_all(respect_config=False):
     module_name = core.module.get_name(module)
-    if module_name in ("memory", "scheduler", "channel", "model"):
+    if module_name in default_modules:
         default_config["modules"].append(module_name)
     else:
         default_config["modules_disabled"].append(module_name)
