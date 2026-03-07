@@ -1048,13 +1048,6 @@ header h1 {
     margin: 8px 0;
 }
 
-.message p,
-.message div,
-.message li,
-.message blockquote {
-    white-space: pre-wrap;
-}
-
 .message ul, .message ol {
     margin: 8px 0;
     padding-left: 24px;
