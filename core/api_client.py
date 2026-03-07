@@ -130,7 +130,7 @@ class APIClient():
             "messages": context,
             "tools": tools,
             "stream": stream,
-            "temperature": core.config.get("model_temperature", 0.2)
+            "temperature": core.config.get("model_temp", 0.2)
         }
 
         if stream:
