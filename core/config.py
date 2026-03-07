@@ -37,7 +37,7 @@ for channel in channels.get_all(respect_config=False):
     if channel == "debug":
         continue
 
-    if channel_name != "cli":
+    if channel_name not in ("cli", "webui"):
         default_config["channels_disabled"].append(channel_name)
 
 for module in modules.get_all(respect_config=False):
