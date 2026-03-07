@@ -454,7 +454,7 @@ def save_conversation():
     for msg in messages:
         if msg.get('role') == 'user':
             content = msg.get('content', '')
-            if content and not content.startswith('/'):
+            if content and not content.startswith('/') and not content.startswith("[Command") and not content.startswith("[System"):
                 title = content[:50]
                 if len(content) > 50:
                     title += '...'
