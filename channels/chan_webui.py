@@ -468,7 +468,7 @@ def save_conversation():
             if conv.get('id') == conv_id:
                 channel_instance.conversations[i] = {
                     'id': conv_id,
-                    'title': title,
+                    'title': conv.get("title"),
                     'messages': messages,
                     'created': conv.get('created', now),
                     'updated': now
