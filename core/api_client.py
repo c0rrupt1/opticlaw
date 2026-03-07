@@ -76,6 +76,10 @@ class APIClient():
 
     async def insert_message(self, role: str, content: str, num_tokens=None):
         """inserts a message (dict with role and content) into context, trimming when needed"""
+        if not core.config.get("context_window", False):
+            # allow completely turning off context
+            return
+
         await self.trim_messages(num_tokens=num_tokens)
         return self._messages.append(self._convert_message(role, content))
 
