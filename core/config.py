@@ -7,7 +7,7 @@ import channels
 config = core.storage.StorageDict("config", "yaml", data_dir="config")
 
 default_config = {
-    "api_url": "http://localhost:11434/v1",
+    "api_url": "http://localhost:5001/v1",
     "api_key": "KEY_HERE",
     "model": "MODEL_HERE",
     "model_temp": 0.2,
