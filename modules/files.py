@@ -31,7 +31,7 @@ def sizeof_format(num, suffix="B"):
 class Files(core.module.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.sandbox_path = os.path.realpath(core.config.get("sandbox_folder"))
+        self.sandbox_path = os.path.realpath(os.path.expanduser(core.config.get("sandbox_folder")))
         self.trash_path = os.path.realpath(os.path.join(core.get_data_path(), "trash"))
 
         if not os.path.exists(self.sandbox_path):

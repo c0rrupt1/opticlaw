@@ -16,7 +16,7 @@ default_config = {
     "channels": ["cli", "webui"],
     "channels_disabled": [],
     "tools": True,
-    "sandbox_folder": "sandbox",
+    "sandbox_folder": "~/sandbox",
     "modules": [],
     "modules_disabled": [],
     "modules_disable_prompts": [],
