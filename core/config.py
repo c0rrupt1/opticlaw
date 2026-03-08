@@ -16,20 +16,24 @@ default_config = {
     "channels": ["cli", "webui"],
     "channels_disabled": [],
     "tools": True,
+    "sandbox_folder": "sandbox",
     "modules": [],
     "modules_disabled": [],
     "modules_disable_prompts": [],
-    "max_turns": 20,
+    "max_messages": 200,
     "context_window": True
 }
 
 default_modules = (
     "identity",
+    "time",
     "module",
     "model",
     "memory",
     "scheduler",
-    "channel"
+    "channel",
+    "webui",
+    "tokens"
 )
 
 for channel in channels.get_all(respect_config=False):
@@ -37,7 +41,7 @@ for channel in channels.get_all(respect_config=False):
     if channel == "debug":
         continue
 
-    if channel_name not in ("cli", "webui"):
+    if channel_name not in default_config.get("channels"):
         default_config["channels_disabled"].append(channel_name)
 
 for module in modules.get_all(respect_config=False):
