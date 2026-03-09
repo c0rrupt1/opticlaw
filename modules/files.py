@@ -417,6 +417,10 @@ class Files(core.module.Module):
         if recursive and pattern.count("**") > self.MAX_GLOB_DEPTH:
             return self.result(f"error: max recursion depth is {self.MAX_GLOB_DEPTH}", False)
 
+        if "*" not in pattern and "?" not in pattern and len(pattern) >= 3:
+            # default to fuzzy search
+            pattern = f"*{pattern}*"
+
         full_pattern = os.path.join(self.sandbox_path, pattern)
         try:
             matches = glob.glob(full_pattern, recursive=recursive)
